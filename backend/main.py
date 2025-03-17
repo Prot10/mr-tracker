@@ -1,0 +1,100 @@
+from typing import Optional
+
+import asyncpg
+from auth import verify_token
+from database import get_db
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
+app = FastAPI()
+
+# Abilitare CORS per permettere richieste dal frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Sostituisci con l'URL del frontend in produzione se necessario
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Modelli per validare i dati in ingresso
+
+class Transaction(BaseModel):
+    type: str  # "income" o "expense"
+    amount: float
+    description: Optional[str] = None
+
+class Investment(BaseModel):
+    asset_name: str
+    invested_amount: float
+
+# Endpoint GET
+
+@app.get("/transactions")
+async def get_transactions(
+    user_id: str = Depends(verify_token),
+    db: asyncpg.Connection = Depends(get_db)
+):
+    query = "SELECT * FROM transactions WHERE user_id = $1 ORDER BY transaction_date DESC"
+    transactions = await db.fetch(query, user_id)
+    return {"transactions": [dict(t) for t in transactions]}
+
+@app.get("/investments")
+async def get_investments(
+    user_id: str = Depends(verify_token),
+    db: asyncpg.Connection = Depends(get_db)
+):
+    query = "SELECT * FROM investments WHERE user_id = $1 ORDER BY date_invested DESC"
+    investments = await db.fetch(query, user_id)
+    return {"investments": [dict(t) for t in investments]}
+
+@app.get("/networth")
+async def get_networth(
+    user_id: str = Depends(verify_token),
+    db: asyncpg.Connection = Depends(get_db)
+):
+    income_query = "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = $1 AND type = 'income'"
+    expense_query = "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = $1 AND type = 'expense'"
+    investment_query = "SELECT COALESCE(SUM(invested_amount), 0) FROM investments WHERE user_id = $1"
+
+    income = await db.fetchval(income_query, user_id)
+    expense = await db.fetchval(expense_query, user_id)
+    investment = await db.fetchval(investment_query, user_id)
+    net_worth = (income - expense) + investment
+
+    return {"net_worth": net_worth}
+
+# Endpoint POST
+
+@app.post("/transactions", status_code=status.HTTP_201_CREATED)
+async def create_transaction(
+    transaction: Transaction,
+    user_id: str = Depends(verify_token),
+    db: asyncpg.Connection = Depends(get_db)
+):
+    query = """
+    INSERT INTO transactions (user_id, type, amount, description)
+    VALUES ($1, $2, $3, $4)
+    RETURNING id, transaction_date;
+    """
+    result = await db.fetchrow(query, user_id, transaction.type, transaction.amount, transaction.description)
+    if result:
+        return {"id": result["id"], "transaction_date": result["transaction_date"]}
+    raise HTTPException(status_code=400, detail="Errore nell'inserimento della transazione")
+
+@app.post("/investments", status_code=status.HTTP_201_CREATED)
+async def create_investment(
+    investment: Investment,
+    user_id: str = Depends(verify_token),
+    db: asyncpg.Connection = Depends(get_db)
+):
+    query = """
+    INSERT INTO investments (user_id, asset_name, invested_amount)
+    VALUES ($1, $2, $3)
+    RETURNING id, date_invested;
+    """
+    result = await db.fetchrow(query, user_id, investment.asset_name, investment.invested_amount)
+    if result:
+        return {"id": result["id"], "date_invested": result["date_invested"]}
+    raise HTTPException(status_code=400, detail="Errore nell'inserimento dell'investimento")

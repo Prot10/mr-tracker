@@ -18,6 +18,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/")
+def home():
+    return {"message": "Backend attivo! 🎉"}
+
 # Modelli per validare i dati in ingresso
 
 class Transaction(BaseModel):

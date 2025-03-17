@@ -1,4 +1,10 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+  output: "export",
+  reactStrictMode: true,
+  experimental: {
+    appDir: true, // Assicurati che sia attivo se usi il file-based routing
+  },
+};
 
-export default nextConfig;
+module.exports = nextConfig;

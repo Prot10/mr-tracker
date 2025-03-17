@@ -4,4 +4,5 @@ export default {
   experimental: {
     appDir: true,
   },
+  trailingSlash: true,
 };

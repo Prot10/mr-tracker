@@ -1,75 +1,91 @@
-# Mr Tracker - Gestionale Finanziario
+# Mr Tracker - Financial Management App
 
-## 📌 Panoramica
+## 📌 Overview
 
-**Mr Tracker** è un'applicazione full-stack per la gestione finanziaria, progettata per monitorare entrate, spese e investimenti con automazioni avanzate, gestione intelligente delle categorie, prezzi aggiornati in tempo reale e una dashboard interattiva.
+**Mr Tracker** is a full-stack financial management application designed to track income, expenses, and investments with advanced automation, intelligent category management, real-time price updates, and an interactive dashboard.
 
-## 🚀 Tecnologie Utilizzate
+## 🚀 Technologies Used
 
-- **Frontend:** Next.js (React) - Deploy su Vercel
-- **Backend:** FastAPI (Python) - Deploy su Render/Railway
-- **Database:** PostgreSQL su Supabase
+- **Frontend:** Next.js (React) - Deployed on Vercel
+- **Backend:** FastAPI (Python) - Deployed on Render/Railway
+- **Database:** PostgreSQL on Supabase
 
-## 🏗 Struttura del Progetto
+## 🏗 Project Structure
 
 ```
-financial-app/
-│── backend/  # FastAPI Backend
-│── frontend/ # Next.js Frontend
-│── README.md
+mr-tracker/
+│── backend/            # FastAPI backend
+│   │── app/
+│   │   │── main.py     # FastAPI application entry point
+│   │   │── auth.py     # Authentication logic with Supabase Auth
+│   │   │── database.py # Database connection to Supabase
+│   │   │── models.py   # Pydantic models
+│   │   │── routes/     # API endpoints
+│   │── requirements.txt # Python dependencies
+│── frontend/           # Next.js frontend
+│   │── app/
+│   │   │── components/ # Reusable UI components
+│   │   │── pages/
+│   │   │   │── login.js    # Login page
+│   │   │   │── signup.js   # Signup page
+│   │   │   │── dashboard.js # User dashboard
+│   │── public/        # Static assets
+│   │── package.json   # Frontend dependencies
+│── README.md          # Project documentation
+│── LICENSE            # Project license
 ```
 
-## 🔥 Funzionalità Principali
+## 🔥 Key Features
 
-### 🔹 **Autenticazione e Onboarding**
+### 🔹 **Authentication & Onboarding**
 
-- Login e Registrazione con Supabase Auth
-- Setup iniziale per selezione delle categorie e saldo iniziale
+- Login and registration with Supabase Auth
+- Initial setup for selecting spending categories and initial balance
 
-### 🔹 **Dashboard Interattiva**
+### 🔹 **Interactive Dashboard**
 
-- Net Worth aggiornato (saldo disponibile + investimenti)
-- Grafici interattivi per la distribuzione del patrimonio
-- Statistiche dettagliate sulle entrate e spese
+- Real-time Net Worth (available balance + investments)
+- Interactive charts displaying financial distribution
+- Detailed statistics on income and expenses
 
-### 🔹 **Gestione Entrate e Spese**
+### 🔹 **Income & Expense Management**
 
-- Tabella interattiva con filtri e sorting
-- Aggiunta di transazioni (singole o ricorrenti)
-- Gestione avanzata delle categorie di spesa
+- Interactive table with filters and sorting
+- Adding transactions (single or recurring)
+- Advanced category management
 
-### 🔹 **Gestione Investimenti**
+### 🔹 **Investment Management**
 
-- Tabella investimenti con storico e prezzi in tempo reale
-- Supporto per investimenti singoli e programmati (DCA, PAC)
-- Integrazione con API per l’aggiornamento dei prezzi
+- Investment tracking with historical and real-time prices
+- Support for single and recurring investments (DCA, PAC)
+- API integration for price updates
 
-### 🔹 **Insights e Analisi Finanziaria**
+### 🔹 **Financial Insights & Projections**
 
-- Grafici dettagliati su spese, entrate e investimenti
-- Nuove metriche per analisi del cashflow
-- Simulazione di scenari futuri con proiezioni finanziarie
+- Detailed financial analytics charts
+- Key metrics for cashflow analysis
+- Future scenario simulation with financial projections
 
-## 📥 Installazione
+## 📥 Installation
 
-### **1️⃣ Clona il Repository**
+### **1️⃣ Clone the Repository**
 
 ```bash
-git clone https://github.com/TUO-USERNAME/NOME-REPO.git
-cd financial-app
+git clone https://github.com/Prot10/mr-tracker.git
+cd mr-tracker
 ```
 
-### **2️⃣ Configura il Backend**
+### **2️⃣ Set Up the Backend**
 
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate  # Su Windows usa 'venv\\Scripts\\activate'
+conda create --name mr-tracker python=3.12 -y
+conda activate mr-tracker
 pip install -r requirements.txt
-uvicorn main:app --reload
+uvicorn app.main:app --reload
 ```
 
-### **3️⃣ Configura il Frontend**
+### **3️⃣ Set Up the Frontend**
 
 ```bash
 cd frontend
@@ -77,46 +93,77 @@ npm install
 npm run dev
 ```
 
-L'app sarà disponibile su `http://localhost:3000`
+The app will be available at `http://localhost:3000`
 
-## 🔄 Roadmap
+## 🔄 Updated Roadmap
 
-📌 **Fase 1:** Setup e autenticazione
-📌 **Fase 2:** Dashboard e gestione portafoglio
-📌 **Fase 3:** Implementazione investimenti
-📌 **Fase 4:** Automazione operazioni finanziarie
-📌 **Fase 5:** Insights e proiezioni avanzate
-📌 **Fase 6:** Ottimizzazione Backend con caching e WebSockets
-📌 **Fase 7:** Testing e ottimizzazione UX/UI
-📌 **Fase 8:** Deploy finale su Vercel e Render
+📌 **Phase 1:** Initial setup & authentication
 
-## 👨‍💻 Contribuire
+- Implement Supabase Auth for user management
+- Create a minimal homepage with login & signup
 
-1. **Forka il repository**
-2. **Crea un nuovo branch**
+📌 **Phase 2:** Dashboard & Financial Overview
+
+- Develop the main dashboard UI with real-time net worth calculation
+- Implement interactive charts displaying user finances
+
+📌 **Phase 3:** Income & Expense Tracking
+
+- Add CRUD operations for transactions
+- Implement filtering, sorting, and categorization
+
+📌 **Phase 4:** Investment Tracking & Management
+
+- Implement an investment tracker with historical data
+- Automate investment portfolio updates using external APIs
+
+📌 **Phase 5:** Automation & Recurring Transactions
+
+- Add recurring transactions execution via CRON jobs
+- Optimize database queries for performance improvements
+
+📌 **Phase 6:** Advanced Insights & Financial Projections
+
+- Develop dynamic financial projections and scenario simulations
+- Provide detailed insights with AI-driven suggestions
+
+📌 **Phase 7:** Backend Optimization & Scalability
+
+- Implement WebSockets for real-time data updates
+- Optimize caching to reduce API request load
+
+📌 **Phase 8:** Final Testing & Deployment
+
+- Conduct extensive testing for security and performance
+- Deploy the full-stack application on Vercel & Render
+
+## 👨‍💻 Contributing
+
+1. **Fork the repository**
+2. **Create a new branch**
 
 ```bash
-git checkout -b feature-nuova-funzionalita
+git checkout -b feature-new-feature
 ```
 
-3. **Commita le modifiche**
+3. **Commit your changes**
 
 ```bash
-git commit -m "Aggiunta nuova funzionalità"
+git commit -m "Added new feature"
 ```
 
-4. **Push del branch**
+4. **Push the branch**
 
 ```bash
-git push origin feature-nuova-funzionalita
+git push origin feature-new-feature
 ```
 
-5. **Apri una Pull Request**
+5. **Open a Pull Request**
 
-## 📜 Licenza
+## 📜 License
 
-Questo progetto è distribuito sotto licenza MIT. Vedi `LICENSE` per maggiori dettagli.
+This project is licensed under the MIT License. See `LICENSE` for more details.
 
 ---
 
-**🚀 Mr Tracker - Il tuo compagno per la gestione finanziaria!**
+**🚀 Mr Tracker - Your Personal Finance Companion!**

@@ -20,7 +20,7 @@ app.add_middleware(
 
 @app.get("/")
 def home():
-    return {"message": "Backend attivo! 🎉"}
+    return {"message": "Backend attivo!"}
 
 # Modelli per validare i dati in ingresso
 

@@ -12,7 +12,7 @@ app = FastAPI()
 # Abilitare CORS per permettere richieste dal frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Sostituisci con l'URL del frontend in produzione se necessario
+    allow_origins=["http://localhost:3000", "https://mr-tracker.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

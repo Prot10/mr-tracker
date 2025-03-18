@@ -72,7 +72,7 @@ export default function Dashboard() {
       <div className="max-w-4xl mx-auto">
         <h1 className="text-4xl font-bold text-center mb-4">Dashboard</h1>
         <p className="text-center mb-6">
-          Benvenuto, utente: {session.user.email}
+          Benvenuto, {session.user.user_metadata?.name || session.user.email}
         </p>
 
         {/* Bottoni per aggiungere transazioni ed investimenti */}

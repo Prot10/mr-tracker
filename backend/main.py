@@ -33,6 +33,12 @@ class Investment(BaseModel):
     asset_name: str
     invested_amount: float
 
+# Nuovo modello per la registrazione degli utenti
+class UserCreate(BaseModel):
+    email: str
+    password: str
+    name: str
+
 # Endpoint GET
 
 @app.get("/transactions")
@@ -58,6 +64,7 @@ async def get_networth(
     user_id: str = Depends(verify_token),
     db: asyncpg.Connection = Depends(get_db)
 ):
+    # Calcola il saldo delle transazioni: somma delle entrate - somma delle spese
     income_query = "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = $1 AND type = 'income'"
     expense_query = "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = $1 AND type = 'expense'"
     investment_query = "SELECT COALESCE(SUM(invested_amount), 0) FROM investments WHERE user_id = $1"
@@ -69,8 +76,7 @@ async def get_networth(
 
     return {"net_worth": net_worth}
 
-# Endpoint POST
-
+# Endpoint POST per creare transazioni
 @app.post("/transactions", status_code=status.HTTP_201_CREATED)
 async def create_transaction(
     transaction: Transaction,
@@ -87,6 +93,7 @@ async def create_transaction(
         return {"id": result["id"], "transaction_date": result["transaction_date"]}
     raise HTTPException(status_code=400, detail="Errore nell'inserimento della transazione")
 
+# Endpoint POST per creare investimenti
 @app.post("/investments", status_code=status.HTTP_201_CREATED)
 async def create_investment(
     investment: Investment,
@@ -102,3 +109,16 @@ async def create_investment(
     if result:
         return {"id": result["id"], "date_invested": result["date_invested"]}
     raise HTTPException(status_code=400, detail="Errore nell'inserimento dell'investimento")
+
+# Nuovo endpoint POST per la registrazione degli utenti
+@app.post("/register", status_code=status.HTTP_201_CREATED)
+async def register_user(user: UserCreate, db: asyncpg.Connection = Depends(get_db)):
+    query = """
+    INSERT INTO users (email, password, name)
+    VALUES ($1, $2, $3)
+    RETURNING id, email, name;
+    """
+    result = await db.fetchrow(query, user.email, user.password, user.name)
+    if result:
+        return {"id": result["id"], "email": result["email"], "name": result["name"]}
+    raise HTTPException(status_code=400, detail="Errore nella registrazione dell'utente")

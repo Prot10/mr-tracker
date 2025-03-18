@@ -1,26 +1,34 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-4 mx-8">
       <div className="max-w-2xl text-center">
+        <Image
+          src="/mr-tracker.svg"
+          alt="Mr Tracker Logo"
+          width={400}
+          height={400}
+          className="mx-auto mb-4"
+        />
         <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
           Mr Tracker
         </h1>
-        <p className="text-lg md:text-2xl text-gray-300 mb-8">
+        <p className="text-lg md:text-2xl text-neutral-300 mb-8">
           Il tuo gestionale finanziario personale: traccia spese, entrate e
           investimenti in modo semplice e intuitivo.
         </p>
         <div className="flex flex-col md:flex-row gap-4 justify-center">
           <Link
             href="/login"
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-lg font-medium transition"
+            className="md:w-1/4 px-6 py-3 bg-neutral-900 hover:bg-neutral-800 text-white rounded-md text-lg font-medium transition border border-neutral-300"
           >
             Login
           </Link>
           <Link
             href="/signup"
-            className="px-6 py-3 bg-green-600 hover:bg-green-500 text-white rounded-md text-lg font-medium transition"
+            className="md:w-1/4 px-6 py-3 bg-indigo-700 hover:bg-indigo-600 text-white rounded-md text-lg font-medium transition border border-neutral-300"
           >
             Signup
           </Link>

@@ -29,3 +29,6 @@ instance/
 .DS_Store
 .idea/
 *.swp
+
+# Other
+*.psd

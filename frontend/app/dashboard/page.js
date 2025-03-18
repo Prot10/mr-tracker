@@ -7,6 +7,10 @@ import InvestmentsTable from "../components/InvestmentsTable";
 import TransactionsTable from "../components/TransactionsTable";
 import { supabase } from "../lib/supabaseClient";
 
+// Usa la variabile d'ambiente per definire l'URL del backend
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+
 export default function Dashboard() {
   const router = useRouter();
   const [session, setSession] = useState(null);
@@ -35,20 +39,17 @@ export default function Dashboard() {
         Authorization: `Bearer ${accessToken}`,
       };
 
-      const netWorthRes = await fetch("http://localhost:8000/networth", {
-        headers,
-      });
+      const netWorthRes = await fetch(`${BACKEND_URL}/networth`, { headers });
       const netWorthData = await netWorthRes.json();
       setNetWorth(netWorthData.net_worth);
 
-      const transactionsRes = await fetch(
-        "http://localhost:8000/transactions",
-        { headers }
-      );
+      const transactionsRes = await fetch(`${BACKEND_URL}/transactions`, {
+        headers,
+      });
       const transactionsData = await transactionsRes.json();
       setTransactions(transactionsData.transactions);
 
-      const investmentsRes = await fetch("http://localhost:8000/investments", {
+      const investmentsRes = await fetch(`${BACKEND_URL}/investments`, {
         headers,
       });
       const investmentsData = await investmentsRes.json();

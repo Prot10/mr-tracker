@@ -20,7 +20,7 @@ export default function Signup() {
   const handleSignup = async (e) => {
     e.preventDefault();
     if (password !== confirmPassword) {
-      setError("Le password non corrispondono");
+      setError("Passwords do not match");
       return;
     }
 
@@ -35,8 +35,8 @@ export default function Signup() {
     if (error) {
       setError(error.message);
     } else {
-      alert("Controlla la tua email per confermare la registrazione!");
-      router.push("/login");
+      alert("Registration successful!");
+      router.push("/onboarding");
     }
   };
 
@@ -55,13 +55,13 @@ export default function Signup() {
           </Link>
         </div>
         <h1 className="text-3xl font-bold text-white mb-6 text-center">
-          Registrazione
+          Sign Up
         </h1>
         {error && <p className="text-red-500 mb-4 text-center">{error}</p>}
         <form onSubmit={handleSignup} className="space-y-4">
           <div className="mb-4">
             <Label htmlFor="name" className="text-gray-300">
-              Nome
+              Name
             </Label>
             <Input
               id="name"
@@ -69,7 +69,7 @@ export default function Signup() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-4 py-2 rounded-md bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="Inserisci il tuo nome"
+              placeholder="Gino"
             />
           </div>
           <div className="mb-4">
@@ -82,7 +82,7 @@ export default function Signup() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 rounded-md bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="esempio@dominio.com"
+              placeholder="example@domain.com"
             />
           </div>
           <div className="mb-4">
@@ -101,7 +101,7 @@ export default function Signup() {
           </div>
           <div className="mb-8">
             <Label htmlFor="confirmPassword" className="text-gray-300">
-              Conferma Password
+              Confirm Password
             </Label>
             <Input
               id="confirmPassword"
@@ -117,16 +117,16 @@ export default function Signup() {
             type="submit"
             className="w-full py-2 bg-indigo-700 hover:bg-indigo-600 text-white font-semibold rounded-md transition mb-8"
           >
-            Registrati
+            Sign Up
           </button>
         </form>
         <p className="text-center text-gray-400">
-          Hai già un account?{" "}
+          Already have an account?{" "}
           <span
             className="text-indigo-500 cursor-pointer"
             onClick={() => router.push("/login")}
           >
-            Accedi
+            Login
           </span>
         </p>
       </div>

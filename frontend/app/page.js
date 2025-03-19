@@ -16,8 +16,8 @@ export default function HomePage() {
           Mr Tracker
         </h1>
         <p className="text-lg md:text-2xl text-neutral-300 mb-8">
-          Il tuo gestionale finanziario personale: traccia spese, entrate e
-          investimenti in modo semplice e intuitivo.
+          Your personal financial management tool: track expenses, income, and
+          investments in a simple and intuitive way.
         </p>
         <div className="flex flex-col md:flex-row gap-4 justify-center">
           <Link

@@ -7,11 +7,10 @@ import InvestmentsTable from "../components/InvestmentsTable";
 import TransactionsTable from "../components/TransactionsTable";
 import { supabase } from "../lib/supabaseClient";
 
-// Usa la variabile d'ambiente per definire l'URL del backend
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
-export default function Dashboard() {
+export default function Homepage() {
   const router = useRouter();
   const [session, setSession] = useState(null);
   const [netWorth, setNetWorth] = useState(null);
@@ -25,14 +24,14 @@ export default function Dashboard() {
         router.push("/login");
       } else {
         setSession(data.session);
-        fetchDashboardData(data.session.access_token);
+        fetchHomepageData(data.session.access_token);
       }
     };
 
     fetchSession();
   }, [router]);
 
-  const fetchDashboardData = async (accessToken) => {
+  const fetchHomepageData = async (accessToken) => {
     try {
       const headers = {
         "Content-Type": "application/json",
@@ -70,7 +69,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-4">Dashboard</h1>
+        <h1 className="text-4xl font-bold text-center mb-4">Homepage</h1>
         <p className="text-center mb-6">
           Benvenuto, {session.user.user_metadata?.name || session.user.email}
         </p>

@@ -1,8 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
 export default function AddTransaction() {
   const router = useRouter();
@@ -10,6 +12,16 @@ export default function AddTransaction() {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        router.push("/login");
+      }
+    };
+    checkSession();
+  }, [router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,7 +40,7 @@ export default function AddTransaction() {
       Authorization: `Bearer ${token}`,
     };
 
-    const response = await fetch("http://localhost:8000/transactions", {
+    const response = await fetch(`${BACKEND_URL}/transactions`, {
       method: "POST",
       headers,
       body: JSON.stringify({ type, amount: parseFloat(amount), description }),
@@ -36,7 +48,7 @@ export default function AddTransaction() {
 
     if (response.ok) {
       alert("Transazione aggiunta!");
-      router.push("/dashboard");
+      router.push("/homepage");
     } else {
       const data = await response.json();
       setError(data.detail || "Errore durante l'aggiunta");

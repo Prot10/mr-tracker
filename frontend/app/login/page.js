@@ -16,14 +16,27 @@ export default function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     if (error) {
       setError(error.message);
     } else {
-      router.push("/dashboard");
+      const userId = data.session.user.id;
+      const { data: accountData, error: accountError } = await supabase
+        .from("accounts")
+        .select("*")
+        .eq("user_id", userId)
+        .single();
+      if (accountData) {
+        router.push("/homepage");
+      } else {
+        alert(
+          "It looks like you haven't completed onboarding. Please complete the onboarding to continue."
+        );
+        router.push("/onboarding");
+      }
     }
   };
 
@@ -56,7 +69,7 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 rounded-md bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="esempio@dominio.com"
+              placeholder="example@domain.com"
             />
           </div>
           <div className="mb-8">
@@ -76,16 +89,16 @@ export default function Login() {
             type="submit"
             className="w-full py-2 bg-indigo-700 hover:bg-indigo-600 text-white font-semibold rounded-md transition mb-8"
           >
-            Accedi
+            Login
           </button>
         </form>
         <p className="text-center text-gray-400">
-          Ancora non hai un account?{" "}
+          Don't have an account yet?{" "}
           <span
             className="text-indigo-500 cursor-pointer"
             onClick={() => router.push("/signup")}
           >
-            Registrati
+            Sign Up
           </span>
         </p>
       </div>

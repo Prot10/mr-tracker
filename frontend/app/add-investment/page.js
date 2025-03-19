@@ -1,11 +1,24 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
 export default function AddInvestment() {
   const router = useRouter();
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        router.push("/login");
+      }
+    };
+    checkSession();
+  }, [router]);
+
   const [assetName, setAssetName] = useState("");
   const [investedAmount, setInvestedAmount] = useState("");
   const [error, setError] = useState(null);
@@ -27,7 +40,7 @@ export default function AddInvestment() {
       Authorization: `Bearer ${token}`,
     };
 
-    const response = await fetch("http://localhost:8000/investments", {
+    const response = await fetch(`${BACKEND_URL}/investments`, {
       method: "POST",
       headers,
       body: JSON.stringify({
@@ -38,7 +51,7 @@ export default function AddInvestment() {
 
     if (response.ok) {
       alert("Investimento aggiunto!");
-      router.push("/dashboard");
+      router.push("/homepage");
     } else {
       const data = await response.json();
       setError(data.detail || "Errore durante l'aggiunta");

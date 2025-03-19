@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 
 import asyncpg
 from auth import verify_token
@@ -38,6 +38,15 @@ class UserCreate(BaseModel):
     email: str
     password: str
     name: str
+    
+class CategoryData(BaseModel):
+    name: str
+    icon: str
+
+class OnboardingData(BaseModel):
+    initial_balance: float
+    expense_categories: List[CategoryData]
+    income_categories: List[CategoryData]
 
 # Endpoint GET
 
@@ -122,3 +131,34 @@ async def register_user(user: UserCreate, db: asyncpg.Connection = Depends(get_d
     if result:
         return {"id": result["id"], "email": result["email"], "name": result["name"]}
     raise HTTPException(status_code=400, detail="Errore nella registrazione dell'utente")
+
+@app.post("/onboarding")
+async def complete_onboarding(
+    data: OnboardingData,
+    user_id: str = Depends(verify_token),
+    db: asyncpg.Connection = Depends(get_db)
+):
+    if data.initial_balance < 0:
+        raise HTTPException(status_code=400, detail="Initial balance must be positive or 0")
+    
+    # Insert into accounts table
+    await db.execute(
+        "INSERT INTO accounts (user_id, initial_balance) VALUES ($1, $2)",
+        user_id, data.initial_balance
+    )
+    
+    # Insert expense categories
+    for cat in data.expense_categories:
+        await db.execute(
+            "INSERT INTO categories (user_id, type, name, icon) VALUES ($1, 'expense', $2, $3)",
+            user_id, cat.name, cat.icon
+        )
+    
+    # Insert income categories
+    for cat in data.income_categories:
+        await db.execute(
+            "INSERT INTO categories (user_id, type, name, icon) VALUES ($1, 'income', $2, $3)",
+            user_id, cat.name, cat.icon
+        )
+    
+    return {"message": "Onboarding completed successfully"}

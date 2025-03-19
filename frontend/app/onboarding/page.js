@@ -15,7 +15,7 @@ import {
   ShoppingCart,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import {
@@ -26,6 +26,9 @@ import {
   SelectValue,
 } from "../components/ui/select";
 import Stepper, { Step } from "../components/ui/stepper";
+import { supabase } from "../lib/supabaseClient";
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
 const availableIcons = [
   "IconRestaurant",
@@ -82,6 +85,16 @@ export default function Onboarding() {
   const [customIncomeName, setCustomIncomeName] = useState("");
   const [customIncomeIcon, setCustomIncomeIcon] = useState("");
   const [currentStep, setCurrentStep] = useState(1);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        router.push("/login");
+      }
+    };
+    checkSession();
+  }, [router]);
 
   const handleStepChange = (newStep) => {
     // Only validate when moving forward
@@ -189,14 +202,26 @@ export default function Onboarding() {
       income_categories: incomeCategories,
     };
 
-    const response = await fetch("http://localhost:8000/onboarding", {
+    // Get the current session to retrieve the access token
+    const sessionResponse = await supabase.auth.getSession();
+    const session = sessionResponse.data.session;
+    if (!session) {
+      alert("User not authenticated.");
+      return;
+    }
+    const accessToken = session.access_token;
+
+    const response = await fetch(`${BACKEND_URL}/onboarding`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
       body: JSON.stringify(payload),
     });
     const data = await response.json();
     if (response.ok) {
-      router.push("/dashboard");
+      router.push("/homepage");
     } else {
       alert(data.detail || "Error saving onboarding data.");
     }

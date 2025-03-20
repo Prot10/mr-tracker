@@ -16,15 +16,15 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
+import { Input } from "../components/ui/my-input";
+import { Label } from "../components/ui/my-label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../components/ui/select";
+} from "../components/ui/my-select";
 import Stepper, { Step } from "../components/ui/stepper";
 import { supabase } from "../lib/supabaseClient";
 const BACKEND_URL =

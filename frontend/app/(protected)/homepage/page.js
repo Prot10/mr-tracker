@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import InvestmentsTable from "../components/InvestmentsTable";
-import TransactionsTable from "../components/TransactionsTable";
-import { supabase } from "../lib/supabaseClient";
+import InvestmentsTable from "../../components/InvestmentsTable";
+import TransactionsTable from "../../components/TransactionsTable";
+import { supabase } from "../../lib/supabaseClient";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
@@ -67,13 +67,12 @@ export default function Homepage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className="max-w-7xl mx-auto">
         <h1 className="text-4xl font-bold text-center mb-4">Homepage</h1>
         <p className="text-center mb-6">
           Benvenuto, {session.user.user_metadata?.name || session.user.email}
         </p>
-
         {/* Bottoni per aggiungere transazioni ed investimenti */}
         <div className="flex flex-col md:flex-row gap-4 justify-center mb-8">
           <Link
@@ -89,13 +88,11 @@ export default function Homepage() {
             Aggiungi Investimento
           </Link>
         </div>
-
         <div className="bg-gray-800 rounded-lg p-6 shadow-md mb-8">
           <h2 className="text-2xl font-semibold mb-4">
             Net Worth: {netWorth !== null ? netWorth : "Caricamento..."}
           </h2>
         </div>
-
         <div className="mb-8">
           <h3 className="text-xl font-semibold mb-4">Transazioni</h3>
           <TransactionsTable data={transactions} />

@@ -4,8 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { Input } from "../components/ui/my-input";
 import { supabase } from "../lib/supabaseClient";
 
 export default function Login() {

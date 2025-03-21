@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { SectionCards } from "./section-cards";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
@@ -67,39 +66,7 @@ export default function Homepage() {
   return (
     <div className="flex flex-1 flex-col">
       <div className="@container/main flex flex-1 flex-col gap-2">
-        <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-          <SectionCards />
-
-          {/* <Card>
-          <CardHeader>
-            <CardTitle className="text-center text-2xl">Net Worth</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center text-5xl font-bold">
-            {netWorth !== null ? netWorth : "Caricamento..."}
-          </CardContent>
-          <CardFooter className="flex justify-between"></CardFooter>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-center text-2xl">Net Worth</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center text-5xl font-bold">
-            {netWorth !== null ? netWorth : "Caricamento..."}
-          </CardContent>
-          <CardFooter className="flex justify-between"></CardFooter>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-center text-2xl">Net Worth</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center text-5xl font-bold">
-            {netWorth !== null ? netWorth : "Caricamento..."}
-          </CardContent>
-          <CardFooter className="flex justify-between"></CardFooter>
-        </Card> */}
-        </div>
+        <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6"></div>
       </div>
     </div>
   );

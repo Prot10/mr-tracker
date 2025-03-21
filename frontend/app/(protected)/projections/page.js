@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import InvestmentsTable from "../../components/InvestmentsTable";
+import TransactionsTable from "../../components/TransactionsTable";
 import { supabase } from "../../lib/supabaseClient";
-import { SectionCards } from "./section-cards";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
@@ -65,40 +67,39 @@ export default function Homepage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col">
-      <div className="@container/main flex flex-1 flex-col gap-2">
-        <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-          <SectionCards />
-
-          {/* <Card>
-          <CardHeader>
-            <CardTitle className="text-center text-2xl">Net Worth</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center text-5xl font-bold">
-            {netWorth !== null ? netWorth : "Caricamento..."}
-          </CardContent>
-          <CardFooter className="flex justify-between"></CardFooter>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-center text-2xl">Net Worth</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center text-5xl font-bold">
-            {netWorth !== null ? netWorth : "Caricamento..."}
-          </CardContent>
-          <CardFooter className="flex justify-between"></CardFooter>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-center text-2xl">Net Worth</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center text-5xl font-bold">
-            {netWorth !== null ? netWorth : "Caricamento..."}
-          </CardContent>
-          <CardFooter className="flex justify-between"></CardFooter>
-        </Card> */}
+    <div className="min-h-screen bg-neutral-950 text-white flex items-center justify-center">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-4xl font-bold text-center mb-4">Homepage</h1>
+        <p className="text-center mb-6">
+          Benvenuto, {session.user.user_metadata?.name || session.user.email}
+        </p>
+        {/* Bottoni per aggiungere transazioni ed investimenti */}
+        <div className="flex flex-col md:flex-row gap-4 justify-center mb-8">
+          <Link
+            href="/add-transaction"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md transition"
+          >
+            Aggiungi Transazione
+          </Link>
+          <Link
+            href="/add-investment"
+            className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-md transition"
+          >
+            Aggiungi Investimento
+          </Link>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-6 shadow-md mb-8">
+          <h2 className="text-2xl font-semibold mb-4">
+            Net Worth: {netWorth !== null ? netWorth : "Caricamento..."}
+          </h2>
+        </div>
+        <div className="mb-8">
+          <h3 className="text-xl font-semibold mb-4">Transazioni</h3>
+          <TransactionsTable data={transactions} />
+        </div>
+        <div>
+          <h3 className="text-xl font-semibold mb-4">Investimenti</h3>
+          <InvestmentsTable data={investments} />
         </div>
       </div>
     </div>

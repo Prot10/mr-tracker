@@ -122,7 +122,7 @@ function SidebarProvider({
             ...style,
           }}
           className={cn(
-            "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full",
+            "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full bg-neutral-950",
             className
           )}
           {...props}
@@ -239,14 +239,14 @@ function SidebarTrigger({ className, onClick, ...props }) {
       data-slot="sidebar-trigger"
       variant="ghost"
       size="icon"
-      className={cn("size-7", className)}
+      className={cn("size-10", className)}
       onClick={(event) => {
         onClick?.(event);
         toggleSidebar();
       }}
       {...props}
     >
-      <PanelLeftIcon />
+      <PanelLeftIcon style={{ width: "20px", height: "20px" }} />
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   );

@@ -1,7 +1,8 @@
 import { cookies } from "next/headers";
 
 import { AppSidebar } from "../components/app-sidebar";
-import { SidebarProvider, SidebarTrigger } from "../components/ui/sidebar";
+import { SidebarInset, SidebarProvider } from "../components/ui/sidebar";
+import { SiteHeader } from "./site-header";
 
 export default async function Layout({ children }) {
   const cookieStore = await cookies();
@@ -9,13 +10,11 @@ export default async function Layout({ children }) {
 
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
-      <div className="flex min-h-screen min-w-screen">
-        <AppSidebar />
-        <main className="flex-1">
-          <SidebarTrigger />
-          {children}
-        </main>
-      </div>
+      <AppSidebar />
+      <SidebarInset>
+        <SiteHeader />
+        <main className="bg-neutral-950 text-white">{children}</main>
+      </SidebarInset>
     </SidebarProvider>
   );
 }

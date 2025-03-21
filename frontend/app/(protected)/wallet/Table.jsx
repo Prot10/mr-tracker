@@ -25,6 +25,7 @@ import {
   TableRow,
 } from "../../components/ui/table";
 import { supabase } from "../../lib/supabaseClient";
+import { AddTransaction } from "./AddTransaction";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
@@ -175,14 +176,7 @@ export default function TransactionsTable({ data }) {
   return (
     <div className="space-y-4 mx-8">
       <div className="flex gap-8 justify-between">
-        <Button
-          className="border-indigo-500 text-indigo-500"
-          variant="outline"
-          size="sm"
-          onClick={() => setCurrentPage(currentPage - 1)}
-        >
-          Add new transaction
-        </Button>
+        <AddTransaction />
       </div>
 
       <div className="rounded-md border border-neutral-400 overflow-hidden">
@@ -298,7 +292,7 @@ export default function TransactionsTable({ data }) {
                     className="flex items-center gap-2 text-sm font-semibold text-white"
                     onClick={() => handleSort("amount")}
                   >
-                    Amount
+                    Amount (€)
                     <ArrowUpDown className="h-4 w-4" />
                   </Button>
                   <DropdownMenu>

@@ -1,10 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import InvestmentsTable from "../../components/InvestmentsTable";
-import TransactionsTable from "../../components/TransactionsTable";
 import { supabase } from "../../lib/supabaseClient";
 
 const BACKEND_URL =
@@ -69,12 +66,12 @@ export default function Homepage() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white flex items-center justify-center">
-      <div className="max-w-7xl mx-auto">
+      {/* <div className="max-w-7xl mx-auto">
         <h1 className="text-4xl font-bold text-center mb-4">Homepage</h1>
         <p className="text-center mb-6">
           Benvenuto, {session.user.user_metadata?.name || session.user.email}
         </p>
-        {/* Bottoni per aggiungere transazioni ed investimenti */}
+
         <div className="flex flex-col md:flex-row gap-4 justify-center mb-8">
           <Link
             href="/add-transaction"
@@ -111,7 +108,7 @@ export default function Homepage() {
           <h3 className="text-xl font-semibold mb-4">Investimenti</h3>
           <InvestmentsTable data={investments} />
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }

@@ -127,7 +127,7 @@ async def get_networth(
     user_id: str = Depends(verify_token),
     db: asyncpg.Connection = Depends(get_db)
 ):
-    today = date.today()
+    today = date.today() + timedelta(days=1)
     start_30 = today - timedelta(days=30)
     start_60 = today - timedelta(days=60)
 
@@ -210,7 +210,7 @@ async def get_networth(
         "SELECT COALESCE(initial_balance, 0) FROM accounts WHERE user_id = $1", user_id
     )
 
-    networth_now = float(initial_balance) + float(income_30) - float(expense_30) + inv_value_now
+    networth_now = float(initial_balance) + float(income_30) - float(expense_30) + inv_value_now 
     networth_prev = float(initial_balance) + float(income_60) - float(expense_60) + inv_value_30
     networth_change = percentage_change(networth_now, networth_prev)
 

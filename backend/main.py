@@ -1,12 +1,14 @@
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import List, Optional
 
 import asyncpg
+import yfinance as yf
 from auth import verify_token
 from database import get_db
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from pycoingecko import CoinGeckoAPI
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -26,6 +28,7 @@ app.add_middleware(
 def home():
     return {"message": "Backend is up!"}
 
+
 # Models to validate incoming data
 
 class Transaction(BaseModel):
@@ -36,8 +39,14 @@ class Transaction(BaseModel):
     transaction_date: Optional[str] = None
 
 class Investment(BaseModel):
-    asset_name: str
-    invested_amount: float
+    type_of_operation: str         # "acquisto" o "vendita"
+    asset_type: str                # "stock", "ETF" o "crypto"
+    ticker: str                    # es. "AAPL", "BTC", "VUSA.L"
+    full_name: str                 # es. "Apple", "Bitcoin"
+    quantity: float
+    total_value: float
+    date_of_operation: str         # formato "YYYY-MM-DD"
+    exchange: Optional[str] = None
 
 # New model for user registration
 class UserCreate(BaseModel):
@@ -61,6 +70,38 @@ class CategoryCreate(BaseModel):
     icon: str
 
 
+# Funzioni di validazione del ticker
+def validate_ticker_yfinance(ticker: str) -> bool:
+    try:
+        if not ticker:
+            return False
+        ticker_obj = yf.Ticker(ticker)
+        # Attempt to download data to see if the ticker is valid.
+        # If the ticker is invalid, yfinance might return empty data.
+        hist = ticker_obj.history(period="1d")
+        if hist.empty:
+            return False
+        return True
+    except Exception:
+        return False
+
+def validate_ticker_coingecko(ticker: str) -> bool:
+    try:
+        if not ticker:
+            return False
+        cg = CoinGeckoAPI()
+        # Attempt a search on CoinGecko by coin symbol or name.
+        # We'll do a simple search. If no match, it's invalid.
+        search_result = cg.search(query=ticker)
+        # search_result is a dict with keys like 'coins', 'exchanges', etc.
+        if not search_result or "coins" not in search_result:
+            return False
+        # We can consider it valid if at least one coin matches the search.
+        return len(search_result["coins"]) > 0
+    except Exception:
+        return False
+
+
 # GET endpoints
 
 @app.get("/transactions")
@@ -77,7 +118,7 @@ async def get_investments(
     user_id: str = Depends(verify_token),
     db: asyncpg.Connection = Depends(get_db)
 ):
-    query = "SELECT * FROM investments WHERE user_id = $1 ORDER BY date_invested DESC"
+    query = "SELECT * FROM investments WHERE user_id = $1 ORDER BY date_of_operation DESC"
     investments = await db.fetch(query, user_id)
     return {"investments": [dict(t) for t in investments]}
 
@@ -86,19 +127,103 @@ async def get_networth(
     user_id: str = Depends(verify_token),
     db: asyncpg.Connection = Depends(get_db)
 ):
-    # Calculate the net worth: sum of income - sum of expenses
-    initial_balance_query = "SELECT COALESCE(initial_balance, 0) FROM accounts WHERE user_id = $1"
-    income_query = "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = $1 AND type = 'income'"
-    expense_query = "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = $1 AND type = 'expense'"
-    investment_query = "SELECT COALESCE(SUM(invested_amount), 0) FROM investments WHERE user_id = $1"
+    today = date.today()
+    start_30 = today - timedelta(days=30)
+    start_60 = today - timedelta(days=60)
 
-    initial_balance = await db.fetchval(initial_balance_query, user_id)
-    income = await db.fetchval(income_query, user_id)
-    expense = await db.fetchval(expense_query, user_id)
-    investment = await db.fetchval(investment_query, user_id)
-    net_worth = initial_balance + (income - expense) + investment
+    async def get_sum(start_date, end_date, trx_type):
+        query = """
+            SELECT COALESCE(SUM(amount), 0)
+            FROM transactions
+            WHERE user_id = $1 AND type = $2 AND transaction_date >= $3 AND transaction_date < $4
+        """
+        return await db.fetchval(query, user_id, trx_type, start_date, end_date)
 
-    return {"net_worth": net_worth}
+    income_30 = await get_sum(start_30, today, "income")
+    income_60 = await get_sum(start_60, start_30, "income")
+    expense_30 = await get_sum(start_30, today, "expense")
+    expense_60 = await get_sum(start_60, start_30, "expense")
+
+    def percentage_change(current, previous):
+        if previous == 0:
+            return 100.0 if current > 0 else 0.0
+        return ((current - previous) / previous) * 100
+
+    income_change = percentage_change(income_30, income_60)
+    expense_change = percentage_change(expense_30, expense_60)
+
+    investments_query = """
+        SELECT asset_type, ticker, quantity, type_of_operation, date_of_operation
+        FROM investments
+        WHERE user_id = $1
+    """
+    raw_investments = await db.fetch(investments_query, user_id)
+
+    from collections import defaultdict
+    def compute_positions(as_of_date):
+        positions = defaultdict(lambda: {"asset_type": "", "net_quantity": 0.0})
+        for inv in raw_investments:
+            if inv["date_of_operation"] >= as_of_date:
+                continue
+            key = inv["ticker"]
+            q = float(inv["quantity"])
+            if inv["type_of_operation"].lower() == "acquisto":
+                positions[key]["net_quantity"] += q
+            elif inv["type_of_operation"].lower() == "vendita":
+                positions[key]["net_quantity"] -= q
+            positions[key]["asset_type"] = inv["asset_type"]
+        return positions
+
+    async def get_investment_value(positions):
+        total_value = 0.0
+        for ticker, data in positions.items():
+            quantity = data["net_quantity"]
+            asset_type = data["asset_type"]
+            if quantity <= 0:
+                continue
+            try:
+                if asset_type.lower() in ["stock", "etf"]:
+                    price = yf.Ticker(ticker).history(period="1d")["Close"][-1]
+                elif asset_type.lower() == "crypto":
+                    cg = CoinGeckoAPI()
+                    result = cg.search(query=ticker)
+                    coins = result.get("coins", [])
+                    if not coins:
+                        continue
+                    coin_id = coins[0]["id"]
+                    market_data = cg.get_price(ids=coin_id, vs_currencies="usd")
+                    price = market_data[coin_id]["usd"]
+                else:
+                    continue
+                total_value += price * quantity
+            except Exception as e:
+                logger.warning(f"⚠️ Errore prezzo {ticker}: {e}")
+                continue
+        return total_value
+
+    pos_now = compute_positions(today + timedelta(days=1))
+    pos_30 = compute_positions(start_30)
+    inv_value_now = await get_investment_value(pos_now)
+    inv_value_30 = await get_investment_value(pos_30)
+
+    initial_balance = await db.fetchval(
+        "SELECT COALESCE(initial_balance, 0) FROM accounts WHERE user_id = $1", user_id
+    )
+
+    networth_now = float(initial_balance) + float(income_30) - float(expense_30) + inv_value_now
+    networth_prev = float(initial_balance) + float(income_60) - float(expense_60) + inv_value_30
+    networth_change = percentage_change(networth_now, networth_prev)
+
+    return {
+        "net_worth": round(networth_now, 2),
+        "income_last_30_days": round(income_30, 2),
+        "income_change_pct": round(income_change, 2),
+        "expense_last_30_days": round(expense_30, 2),
+        "expense_change_pct": round(expense_change, 2),
+        "net_worth_change_pct": round(networth_change, 2),
+        "investment_value_now": round(inv_value_now, 2),
+        "investment_value_30_days_ago": round(inv_value_30, 2)
+    }
 
 # POST endpoint to create transactions
 @app.post("/transactions")
@@ -140,20 +265,92 @@ async def create_transaction(
 
 # POST endpoint to create investments
 @app.post("/investments", status_code=status.HTTP_201_CREATED)
-async def create_investment(
+async def create_investment_new(
     investment: Investment,
     user_id: str = Depends(verify_token),
-    db: asyncpg.Connection = Depends(get_db)
+    db: asyncpg.Connection = Depends(get_db),
 ):
-    query = """
-    INSERT INTO investments (user_id, asset_name, invested_amount)
-    VALUES ($1, $2, $3)
-    RETURNING id, date_invested;
-    """
-    result = await db.fetchrow(query, user_id, investment.asset_name, investment.invested_amount)
-    if result:
-        return {"id": result["id"], "date_invested": result["date_invested"]}
-    raise HTTPException(status_code=400, detail="Error inserting investment")
+    # 1. Validazione del ticker in base al tipo di asset
+    if investment.asset_type.lower() in ["stock", "etf"]:
+        valid = validate_ticker_yfinance(investment.ticker)
+    elif investment.asset_type.lower() == "crypto":
+        valid = validate_ticker_coingecko(investment.ticker)
+    else:
+        raise HTTPException(status_code=400, detail=f"Asset type {investment.asset_type} non supportato")
+    if not valid:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{investment.ticker} non supportato, controllare se il nome è corretto o riprovare in futuro"
+        )
+    
+    # 2. Parsing della data
+    try:
+        op_date = datetime.strptime(investment.date_of_operation, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Formato data non valido")
+    
+    # 3. Calcolo del prezzo per unità (price_per_unit)
+    if investment.quantity <= 0:
+        raise HTTPException(status_code=400, detail="La quantità deve essere maggiore di 0")
+    price_per_unit = investment.total_value / investment.quantity
+
+    async with db.transaction():
+        # 4. Inserisci l'investimento
+        insert_query = """
+        INSERT INTO investments (
+            user_id,
+            type_of_operation,
+            asset_type,
+            ticker,
+            full_name,
+            quantity,
+            price_per_unit,
+            total_value,
+            date_of_operation,
+            exchange
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING id;
+        """
+        new_id = await db.fetchval(
+            insert_query,
+            user_id,
+            investment.type_of_operation,
+            investment.asset_type,
+            investment.ticker,
+            investment.full_name,
+            investment.quantity,
+            price_per_unit,
+            investment.total_value,
+            op_date,
+            investment.exchange,
+        )
+        if not new_id:
+            raise HTTPException(status_code=400, detail="Impossibile aggiungere l'investimento")
+        
+        # 5. Se si tratta di un "acquisto", crea la transazione corrispondente
+        if investment.type_of_operation.lower() == "acquisto":
+            # a) Controlla se esiste la categoria "investimenti" per l'utente
+            cat_query = "SELECT id FROM categories WHERE user_id = $1 AND name = 'investimenti' LIMIT 1"
+            cat_id = await db.fetchval(cat_query, user_id)
+            if not cat_id:
+                # Se non esiste, la crea
+                cat_insert = """
+                INSERT INTO categories (user_id, type, name, icon)
+                VALUES ($1, 'expense', 'investimenti', 'IconChart')
+                RETURNING id;
+                """
+                cat_id = await db.fetchval(cat_insert, user_id)
+            # b) Crea la transazione
+            trx_query = """
+            INSERT INTO transactions 
+                (user_id, type, amount, description, category_id, transaction_date)
+            VALUES ($1, 'expense', $2, $3, $4, $5);
+            """
+            description = f"acquisto {investment.full_name}"
+            await db.execute(trx_query, user_id, investment.total_value, description, cat_id, op_date)
+    
+    return {"message": "Investment added successfully", "id": new_id}
 
 @app.get("/categories")
 async def get_categories(

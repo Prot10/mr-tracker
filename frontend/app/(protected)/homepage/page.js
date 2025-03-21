@@ -11,9 +11,7 @@ const BACKEND_URL =
 export default function Homepage() {
   const router = useRouter();
   const [session, setSession] = useState(null);
-  const [netWorth, setNetWorth] = useState(null);
-  const [transactions, setTransactions] = useState([]);
-  const [investments, setInvestments] = useState([]);
+  const [netWorthData, setNetWorthData] = useState(null);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -37,20 +35,8 @@ export default function Homepage() {
       };
 
       const netWorthRes = await fetch(`${BACKEND_URL}/networth`, { headers });
-      const netWorthData = await netWorthRes.json();
-      setNetWorth(netWorthData.net_worth);
-
-      const transactionsRes = await fetch(`${BACKEND_URL}/transactions`, {
-        headers,
-      });
-      const transactionsData = await transactionsRes.json();
-      setTransactions(transactionsData.transactions);
-
-      const investmentsRes = await fetch(`${BACKEND_URL}/investments`, {
-        headers,
-      });
-      const investmentsData = await investmentsRes.json();
-      setInvestments(investmentsData.investments);
+      const netWorthJson = await netWorthRes.json();
+      setNetWorthData(netWorthJson);
     } catch (error) {
       console.error("Errore nel recupero dei dati:", error);
     }
@@ -64,41 +50,38 @@ export default function Homepage() {
     );
   }
 
+  const cardsData = [
+    {
+      title: "Net Worth",
+      description: "Current total net worth",
+      value: netWorthData ? netWorthData.net_worth : 0,
+      change: netWorthData ? netWorthData.net_worth_change_pct : 0,
+    },
+    {
+      title: "Expenses",
+      description: "Total spending in the last 30 days",
+      value: netWorthData ? netWorthData.expense_last_30_days : 0,
+      change: netWorthData ? netWorthData.expense_change_pct : 0,
+    },
+    {
+      title: "Income",
+      description: "Total income in the last 30 days",
+      value: netWorthData ? netWorthData.income_last_30_days : 0,
+      change: netWorthData ? netWorthData.income_change_pct : 0,
+    },
+    {
+      title: "Investments",
+      description: "Current total investment value",
+      value: netWorthData ? netWorthData.investment_value_now : 0,
+      change: netWorthData ? netWorthData.investment_value_30_days_ago : 0,
+    },
+  ];
+
   return (
     <div className="flex flex-1 flex-col">
       <div className="@container/main flex flex-1 flex-col gap-2">
         <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-          <SectionCards />
-
-          {/* <Card>
-          <CardHeader>
-            <CardTitle className="text-center text-2xl">Net Worth</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center text-5xl font-bold">
-            {netWorth !== null ? netWorth : "Caricamento..."}
-          </CardContent>
-          <CardFooter className="flex justify-between"></CardFooter>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-center text-2xl">Net Worth</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center text-5xl font-bold">
-            {netWorth !== null ? netWorth : "Caricamento..."}
-          </CardContent>
-          <CardFooter className="flex justify-between"></CardFooter>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-center text-2xl">Net Worth</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center text-5xl font-bold">
-            {netWorth !== null ? netWorth : "Caricamento..."}
-          </CardContent>
-          <CardFooter className="flex justify-between"></CardFooter>
-        </Card> */}
+          <SectionCards cardsData={cardsData} />
         </div>
       </div>
     </div>

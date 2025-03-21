@@ -12,28 +12,67 @@ import { useMemo, useState } from "react";
 export default function InvestmentsTable({ data }) {
   const [sorting, setSorting] = useState([]);
   const [globalFilter, setGlobalFilter] = useState("");
+  // Filter by asset type ("stock", "ETF", "crypto")
+  const [assetTypeFilter, setAssetTypeFilter] = useState("");
+
+  // Filter data by asset type if one is selected
+  const filteredData = useMemo(() => {
+    return assetTypeFilter
+      ? data.filter((inv) => inv.asset_type === assetTypeFilter)
+      : data;
+  }, [data, assetTypeFilter]);
 
   const columns = useMemo(
     () => [
       {
-        accessorKey: "date_invested",
-        header: "Data",
-        cell: (info) => new Date(info.getValue()).toLocaleString(),
+        accessorKey: "date_of_operation",
+        header: "Date",
+        cell: (info) => {
+          const rawValue = info.getValue();
+          if (!rawValue) return "—";
+          return new Date(rawValue).toLocaleDateString();
+        },
       },
       {
-        accessorKey: "asset_name",
-        header: "Nome Attivo",
+        accessorKey: "type_of_operation",
+        header: "Operation",
+        cell: (info) => {
+          const val = info.getValue() || "";
+          // Just in case you want to show them in uppercase or something
+          return val;
+        },
       },
       {
-        accessorKey: "invested_amount",
-        header: "Importo Investito",
+        accessorKey: "asset_type",
+        header: "Asset Type",
+      },
+      {
+        accessorKey: "ticker",
+        header: "Ticker",
+      },
+      {
+        accessorKey: "full_name",
+        header: "Full Name",
+      },
+      {
+        accessorKey: "quantity",
+        header: "Quantity",
+      },
+      {
+        accessorKey: "total_value",
+        header: "Total Value",
+      },
+      {
+        accessorKey: "exchange",
+        header: "Exchange",
+        cell: (info) => info.getValue() || "—",
       },
     ],
     []
   );
 
   const table = useReactTable({
-    data,
+    data: filteredData,
     columns,
     state: {
       sorting,
@@ -48,15 +87,28 @@ export default function InvestmentsTable({ data }) {
 
   return (
     <div className="p-4 bg-gray-800 rounded-lg">
-      <div className="mb-4">
+      <div className="mb-4 flex gap-4">
+        {/* Global search filter */}
         <input
           type="text"
-          placeholder="Cerca investimenti..."
+          placeholder="Search investments..."
           className="px-4 py-2 rounded-md bg-gray-700 text-white focus:outline-none w-full"
           value={globalFilter ?? ""}
           onChange={(e) => setGlobalFilter(e.target.value)}
         />
+        {/* Filter by asset type */}
+        <select
+          value={assetTypeFilter}
+          onChange={(e) => setAssetTypeFilter(e.target.value)}
+          className="px-4 py-2 rounded-md bg-gray-700 text-white"
+        >
+          <option value="">All Asset Types</option>
+          <option value="stock">stock</option>
+          <option value="ETF">ETF</option>
+          <option value="crypto">crypto</option>
+        </select>
       </div>
+
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-700">
           <thead className="bg-gray-900">

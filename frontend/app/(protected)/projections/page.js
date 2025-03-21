@@ -13,7 +13,7 @@ const BACKEND_URL =
 export default function Homepage() {
   const router = useRouter();
   const [session, setSession] = useState(null);
-  const [netWorth, setNetWorth] = useState(null);
+  const [netWorthData, setNetWorthData] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [investments, setInvestments] = useState([]);
 
@@ -38,9 +38,10 @@ export default function Homepage() {
         Authorization: `Bearer ${accessToken}`,
       };
 
+      // Fetch del net worth con tutti i valori aggregati
       const netWorthRes = await fetch(`${BACKEND_URL}/networth`, { headers });
-      const netWorthData = await netWorthRes.json();
-      setNetWorth(netWorthData.net_worth);
+      const netWorthJson = await netWorthRes.json();
+      setNetWorthData(netWorthJson);
 
       const transactionsRes = await fetch(`${BACKEND_URL}/transactions`, {
         headers,
@@ -90,8 +91,17 @@ export default function Homepage() {
         </div>
         <div className="bg-gray-800 rounded-lg p-6 shadow-md mb-8">
           <h2 className="text-2xl font-semibold mb-4">
-            Net Worth: {netWorth !== null ? netWorth : "Caricamento..."}
+            Net Worth:{" "}
+            {netWorthData ? netWorthData.net_worth : "Caricamento..."}
           </h2>
+          {netWorthData && (
+            <div className="text-sm text-gray-400">
+              <p>Investimenti: {netWorthData.investment_value_now}</p>
+              <p>Income 30gg: {netWorthData.income_last_30_days}</p>
+              <p>Expense 30gg: {netWorthData.expense_last_30_days}</p>
+              <p>Net Worth Change: {netWorthData.net_worth_change_pct}%</p>
+            </div>
+          )}
         </div>
         <div className="mb-8">
           <h3 className="text-xl font-semibold mb-4">Transazioni</h3>

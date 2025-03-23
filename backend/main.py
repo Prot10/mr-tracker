@@ -268,6 +268,66 @@ async def create_transaction(
         logger.error(f"❌ Database error during transaction insert: {e}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
+@app.delete("/transactions/{transaction_id}")
+async def delete_transaction(
+    transaction_id: int,
+    user_id: str = Depends(verify_token),
+    db: asyncpg.Connection = Depends(get_db)
+):
+    try:
+        # Make sure transaction belongs to this user
+        delete_query = """
+        DELETE FROM transactions
+        WHERE id = $1 AND user_id = $2
+        RETURNING id;
+        """
+        deleted_id = await db.fetchval(delete_query, transaction_id, user_id)
+        if not deleted_id:
+            raise HTTPException(status_code=404, detail="Transaction not found or not authorized")
+        return {"message": "Transaction deleted successfully"}
+    except asyncpg.PostgresError as e:
+        logger.error(f"❌ Database error during transaction delete: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+@app.put("/transactions/{transaction_id}")
+async def update_transaction(
+    transaction_id: int,
+    updated_transaction: Transaction,
+    user_id: str = Depends(verify_token),
+    db: asyncpg.Connection = Depends(get_db)
+):
+    try:
+        transaction_date = (
+            datetime.strptime(updated_transaction.transaction_date, "%Y-%m-%d").date()
+            if updated_transaction.transaction_date else date.today()
+        )
+        update_query = """
+        UPDATE transactions
+        SET type = $1,
+            amount = $2,
+            description = $3,
+            category_id = $4,
+            transaction_date = $5
+        WHERE id = $6 AND user_id = $7
+        RETURNING id;
+        """
+        result = await db.fetchval(
+            update_query,
+            updated_transaction.type,
+            updated_transaction.amount,
+            updated_transaction.description,
+            updated_transaction.category_id,
+            transaction_date,
+            transaction_id,
+            user_id
+        )
+        if not result:
+            raise HTTPException(status_code=404, detail="Transaction not found or not authorized")
+        return {"message": "Transaction updated successfully", "id": result}
+    except asyncpg.PostgresError as e:
+        logger.error(f"❌ Database error during transaction update: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
 # POST endpoint to create investments
 @app.post("/investments", status_code=status.HTTP_201_CREATED)
 async def create_investment_new(

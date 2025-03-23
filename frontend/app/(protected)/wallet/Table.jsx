@@ -166,18 +166,49 @@ export default function TransactionsTable({ data }) {
     setSortConfig({ key: columnKey, direction });
   };
 
-  const handleDelete = (id) => {
-    console.log("Delete transaction with id", id);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const handleDelete = async (id) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) return;
+    const token = sessionData.session.access_token;
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/transactions/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        console.error("Failed to delete transaction");
+        return;
+      }
+
+      console.log("Transaction deleted successfully");
+    } catch (error) {
+      console.error("Error deleting transaction", error);
+    }
   };
 
-  const handleUpdate = (id) => {
-    console.log("Update transaction with id", id);
+  const handleUpdate = (row) => {
+    setSelectedTransaction(row);
+    setDialogOpen(true);
   };
 
   return (
     <div className="space-y-4 mx-8">
       <div className="flex gap-8 justify-between">
-        <AddTransaction />
+        <AddTransaction
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          existingTransaction={selectedTransaction}
+          onTransactionSaved={() => {
+            console.log("Transaction updated or added.");
+          }}
+        />
       </div>
 
       <div className="rounded-md border border-neutral-400 overflow-hidden">
@@ -473,7 +504,7 @@ export default function TransactionsTable({ data }) {
                       <DropdownMenuContent className="bg-neutral-950">
                         <DropdownMenuItem
                           className="text-blue-500"
-                          onClick={() => handleUpdate(row.id)}
+                          onClick={() => handleUpdate(row)}
                         >
                           Update
                         </DropdownMenuItem>

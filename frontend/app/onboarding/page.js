@@ -5,14 +5,20 @@ import {
   Airplay,
   Anchor,
   Aperture,
+  Book,
   Briefcase,
+  Camera,
   Car,
   ChefHat,
   Coffee,
   Euro,
+  Film,
   Heart,
   Home,
+  Music,
+  Plane,
   ShoppingCart,
+  Wrench,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -43,6 +49,12 @@ const availableIcons = [
   "IconAirplay",
   "IconAnchor",
   "IconAperture",
+  "IconBook",
+  "IconCamera",
+  "IconMusic",
+  "IconFilm",
+  "IconWrench",
+  "IconPlane",
 ];
 
 const iconMapping = {
@@ -58,6 +70,12 @@ const iconMapping = {
   IconAirplay: Airplay,
   IconAnchor: Anchor,
   IconAperture: Aperture,
+  IconBook: Book,
+  IconCamera: Camera,
+  IconMusic: Music,
+  IconFilm: Film,
+  IconWrench: Wrench,
+  IconPlane: Plane,
 };
 
 const predefinedExpenseCategories = [
@@ -66,6 +84,7 @@ const predefinedExpenseCategories = [
   { name: "Shopping", icon: "IconShoppingCart" },
   { name: "Housing", icon: "IconHome" },
   { name: "Health", icon: "IconHealth" },
+  { name: "Other", icon: "IconWrench" },
 ];
 
 const predefinedIncomeCategories = [
@@ -164,7 +183,12 @@ export default function Onboarding() {
     if (customExpenseName && customExpenseIcon) {
       setExpenseCategories((prev) => [
         ...prev,
-        { name: customExpenseName, icon: customExpenseIcon },
+        {
+          name:
+            customExpenseName.charAt(0).toUpperCase() +
+            customExpenseName.slice(1).toLowerCase(),
+          icon: customExpenseIcon,
+        },
       ]);
       setCustomExpenseName("");
       setCustomExpenseIcon("");
@@ -175,7 +199,12 @@ export default function Onboarding() {
     if (customIncomeName && customIncomeIcon) {
       setIncomeCategories((prev) => [
         ...prev,
-        { name: customIncomeName, icon: customIncomeIcon },
+        {
+          name:
+            customIncomeName.charAt(0).toUpperCase() +
+            customIncomeName.slice(1).toLowerCase(),
+          icon: customIncomeIcon,
+        },
       ]);
       setCustomIncomeName("");
       setCustomIncomeIcon("");
@@ -252,7 +281,7 @@ export default function Onboarding() {
                 placeholder="0"
                 required
                 min="1"
-                className="w-full px-4 py-2 rounded-md bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-2 rounded-md bg-neutral-950 text-white"
               />
             </div>
           </Step>
@@ -310,7 +339,7 @@ export default function Onboarding() {
                     value={customExpenseName}
                     onChange={(e) => setCustomExpenseName(e.target.value)}
                     placeholder="Category name"
-                    className="w-full px-4 h-9 rounded-md bg-gray-700 text-white"
+                    className="w-full px-4 h-10 rounded-md bg-neutral-950 text-white"
                   />
                   <Select
                     value={customExpenseIcon}
@@ -321,15 +350,21 @@ export default function Onboarding() {
                     <SelectTrigger className="w-20 h-10">
                       <SelectValue placeholder="Icon" />
                     </SelectTrigger>
-                    <SelectContent className="bg-neutral-950 w-20">
-                      {availableIcons.map((iconKey) => (
-                        <SelectItem key={iconKey} value={iconKey}>
-                          {React.createElement(
-                            iconMapping[iconKey] || (() => null),
-                            { className: "w-4 h-4" }
-                          )}
-                        </SelectItem>
-                      ))}
+                    <SelectContent className="bg-neutral-950 w-48 p-2">
+                      <div className="grid grid-cols-3 gap-2">
+                        {availableIcons.map((iconKey) => (
+                          <SelectItem
+                            key={iconKey}
+                            value={iconKey}
+                            className="flex items-center justify-center"
+                          >
+                            {React.createElement(
+                              iconMapping[iconKey] || (() => null),
+                              { className: "w-4 h-4" }
+                            )}
+                          </SelectItem>
+                        ))}
+                      </div>
                     </SelectContent>
                   </Select>
                 </div>
@@ -337,7 +372,7 @@ export default function Onboarding() {
                   <button
                     type="button"
                     onClick={addCustomExpenseCategory}
-                    className="w-full px-4 h-9 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md"
+                    className="w-full px-4 h-9 hover:bg-white bg-neutral-800 text-white hover:text-black rounded-md"
                   >
                     Add
                   </button>
@@ -399,7 +434,7 @@ export default function Onboarding() {
                     value={customIncomeName}
                     onChange={(e) => setCustomIncomeName(e.target.value)}
                     placeholder="Category name"
-                    className="w-full px-4 h-9 rounded-md bg-gray-700 text-white"
+                    className="w-full px-4 h-10 rounded-md bg-neutral-950 text-white"
                   />
                   <Select
                     value={customIncomeIcon}
@@ -410,15 +445,21 @@ export default function Onboarding() {
                     <SelectTrigger className="w-20 h-10">
                       <SelectValue placeholder="Icon" />
                     </SelectTrigger>
-                    <SelectContent className="bg-neutral-950 w-20">
-                      {availableIcons.map((iconKey) => (
-                        <SelectItem key={iconKey} value={iconKey}>
-                          {React.createElement(
-                            iconMapping[iconKey] || (() => null),
-                            { className: "w-4 h-4" }
-                          )}
-                        </SelectItem>
-                      ))}
+                    <SelectContent className="bg-neutral-950 w-48 p-2">
+                      <div className="grid grid-cols-3 gap-2">
+                        {availableIcons.map((iconKey) => (
+                          <SelectItem
+                            key={iconKey}
+                            value={iconKey}
+                            className="flex items-center justify-center"
+                          >
+                            {React.createElement(
+                              iconMapping[iconKey] || (() => null),
+                              { className: "w-4 h-4" }
+                            )}
+                          </SelectItem>
+                        ))}
+                      </div>
                     </SelectContent>
                   </Select>
                 </div>
@@ -426,7 +467,7 @@ export default function Onboarding() {
                   <button
                     type="button"
                     onClick={addCustomIncomeCategory}
-                    className="w-full px-4 h-9 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md"
+                    className="w-full px-4 h-9 hover:bg-white bg-neutral-800 text-white hover:text-black rounded-md"
                   >
                     Add
                   </button>

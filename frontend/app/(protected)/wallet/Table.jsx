@@ -1,6 +1,12 @@
 "use client";
 
-import { ArrowUpDown, Filter, MoreHorizontal } from "lucide-react";
+import {
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  MoreHorizontal,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "../../components/ui/button";
 import {
@@ -24,6 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "../../components/ui/table";
+import { useIsMobile } from "../../hooks/use-mobile";
 import { supabase } from "../../lib/supabaseClient";
 import { AddTransaction } from "./AddTransaction";
 
@@ -41,6 +48,7 @@ export default function TransactionsTable({ data }) {
   const [sortConfig, setSortConfig] = useState({ key: "", direction: "asc" });
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -158,13 +166,6 @@ export default function TransactionsTable({ data }) {
     setSortConfig({ key: columnKey, direction });
   };
 
-  const getSortIndicator = (columnKey) => {
-    if (sortConfig.key === columnKey) {
-      return sortConfig.direction === "asc" ? " 🔼" : " 🔽";
-    }
-    return null;
-  };
-
   const handleDelete = (id) => {
     console.log("Delete transaction with id", id);
   };
@@ -183,61 +184,6 @@ export default function TransactionsTable({ data }) {
         <Table>
           <TableHeader className="bg-neutral-800">
             <TableRow>
-              {/* Date Column */}
-              <TableHead className="py-2 text-left">
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex items-center gap-2 text-sm font-semibold text-white"
-                    onClick={() => handleSort("transaction_date")}
-                  >
-                    Date
-                    <ArrowUpDown className="h-4 w-4" />
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="p-0 -ml-4">
-                        <Filter className="h-3 w-3 text-white" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="bg-neutral-950 p-2">
-                      <div className="flex flex-col gap-2">
-                        <input
-                          type="date"
-                          value={dateFilter.start}
-                          onChange={(e) =>
-                            setDateFilter({
-                              ...dateFilter,
-                              start: e.target.value,
-                            })
-                          }
-                          className="px-2 py-1 rounded-md bg-neutral-800 text-white"
-                        />
-                        <input
-                          type="date"
-                          value={dateFilter.end}
-                          onChange={(e) =>
-                            setDateFilter({
-                              ...dateFilter,
-                              end: e.target.value,
-                            })
-                          }
-                          className="px-2 py-1 rounded-md bg-neutral-800 text-white"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => setDateFilter({ start: "", end: "" })}
-                        >
-                          Clear
-                        </Button>
-                      </div>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </TableHead>
-
               {/* Type Column */}
               <TableHead className="py-2 text-left">
                 <div className="flex items-center gap-2">
@@ -274,6 +220,61 @@ export default function TransactionsTable({ data }) {
                           variant="ghost"
                           size="xs"
                           onClick={() => setTypeFilter("")}
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </TableHead>
+
+              {/* Category Column */}
+              <TableHead className="py-2 text-left">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex items-center gap-2 text-sm font-semibold text-white"
+                    onClick={() => handleSort("category")}
+                  >
+                    Category
+                    <ArrowUpDown className="h-4 w-4" />
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="p-0 -ml-4">
+                        <Filter className="h-4 w-4 text-white" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="bg-neutral-950 p-2">
+                      <div className="flex flex-col gap-2">
+                        {categories.map((cat) => (
+                          <div key={cat.id} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={categoryFilterMulti.includes(cat.name)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setCategoryFilterMulti((prev) => [
+                                    ...prev,
+                                    cat.name,
+                                  ]);
+                                } else {
+                                  setCategoryFilterMulti((prev) =>
+                                    prev.filter((x) => x !== cat.name)
+                                  );
+                                }
+                              }}
+                              className="w-4 h-4"
+                            />
+                            <span className="text-white">{cat.name}</span>
+                          </div>
+                        ))}
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => setCategoryFilterMulti([])}
                         >
                           Clear
                         </Button>
@@ -340,6 +341,61 @@ export default function TransactionsTable({ data }) {
                 </div>
               </TableHead>
 
+              {/* Date Column */}
+              <TableHead className="py-2 text-left">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex items-center gap-2 text-sm font-semibold text-white"
+                    onClick={() => handleSort("transaction_date")}
+                  >
+                    Date
+                    <ArrowUpDown className="h-4 w-4" />
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="p-0 -ml-4">
+                        <Filter className="h-3 w-3 text-white" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="bg-neutral-950 p-2">
+                      <div className="flex flex-col gap-2">
+                        <input
+                          type="date"
+                          value={dateFilter.start}
+                          onChange={(e) =>
+                            setDateFilter({
+                              ...dateFilter,
+                              start: e.target.value,
+                            })
+                          }
+                          className="px-2 py-1 rounded-md bg-neutral-800 text-white"
+                        />
+                        <input
+                          type="date"
+                          value={dateFilter.end}
+                          onChange={(e) =>
+                            setDateFilter({
+                              ...dateFilter,
+                              end: e.target.value,
+                            })
+                          }
+                          className="px-2 py-1 rounded-md bg-neutral-800 text-white"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => setDateFilter({ start: "", end: "" })}
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </TableHead>
+
               {/* Description Column */}
               <TableHead className="py-2 text-left">
                 <div className="flex items-center gap-2">
@@ -380,61 +436,6 @@ export default function TransactionsTable({ data }) {
                 </div>
               </TableHead>
 
-              {/* Category Column */}
-              <TableHead className="py-2 text-left">
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex items-center gap-2 text-sm font-semibold text-white"
-                    onClick={() => handleSort("category")}
-                  >
-                    Category
-                    <ArrowUpDown className="h-4 w-4" />
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="p-0 -ml-4">
-                        <Filter className="h-4 w-4 text-white" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="bg-neutral-950 p-2">
-                      <div className="flex flex-col gap-2">
-                        {categories.map((cat) => (
-                          <div key={cat.id} className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={categoryFilterMulti.includes(cat.name)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setCategoryFilterMulti((prev) => [
-                                    ...prev,
-                                    cat.name,
-                                  ]);
-                                } else {
-                                  setCategoryFilterMulti((prev) =>
-                                    prev.filter((x) => x !== cat.name)
-                                  );
-                                }
-                              }}
-                              className="w-4 h-4"
-                            />
-                            <span className="text-white">{cat.name}</span>
-                          </div>
-                        ))}
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => setCategoryFilterMulti([])}
-                        >
-                          Clear
-                        </Button>
-                      </div>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </TableHead>
-
               {/* Actions Column (remains unchanged) */}
               <TableHead className="py-2"></TableHead>
             </TableRow>
@@ -445,19 +446,22 @@ export default function TransactionsTable({ data }) {
               return (
                 <TableRow key={row.id}>
                   <TableCell className="px-4 py-2 whitespace-nowrap text-sm text-gray-200">
-                    {new Date(row.transaction_date).toLocaleDateString()}
+                    {row.type.charAt(0).toUpperCase() + row.type.slice(1)}
                   </TableCell>
                   <TableCell className="px-4 py-2 whitespace-nowrap text-sm text-gray-200">
-                    {row.type}
+                    {category ? category.name : "—"}
                   </TableCell>
                   <TableCell className="px-4 py-2 whitespace-nowrap text-sm text-gray-200">
                     {row.amount}
                   </TableCell>
                   <TableCell className="px-4 py-2 whitespace-nowrap text-sm text-gray-200">
-                    {row.description}
+                    {new Date(row.transaction_date).toLocaleDateString()}
                   </TableCell>
                   <TableCell className="px-4 py-2 whitespace-nowrap text-sm text-gray-200">
-                    {category ? category.name : "—"}
+                    {row.description
+                      ? row.description.charAt(0).toUpperCase() +
+                        row.description.slice(1)
+                      : ""}
                   </TableCell>
                   <TableCell className="px-4 py-2 whitespace-nowrap text-sm text-gray-200">
                     <DropdownMenu>
@@ -500,7 +504,7 @@ export default function TransactionsTable({ data }) {
           >
             <SelectTrigger
               id="rowsPerPage"
-              className="px-4 py-2 rounded-md text-white border-neutral-400"
+              className="px-4 py-2 h-8 rounded-md text-white hover:bg-neutral-800 border-neutral-400"
             >
               <SelectValue placeholder="Rows per page" />
             </SelectTrigger>
@@ -517,22 +521,36 @@ export default function TransactionsTable({ data }) {
             {currentPage} / {totalPages}
           </span>
           <Button
-            className="border-neutral-400 min-w-24"
+            className="border-neutral-400 md:min-w-24 hover:bg-neutral-800 h-8"
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage(currentPage - 1)}
             disabled={currentPage === 1}
           >
-            Previous
+            {isMobile ? (
+              <ChevronLeft className="h-4 w-4" />
+            ) : (
+              <>
+                <ChevronLeft className="h-4 w-4" />
+                <span className="ml-1">Previous</span>
+              </>
+            )}
           </Button>
           <Button
-            className="border-neutral-400 min-w-24"
+            className="border-neutral-400 md:min-w-24 hover:bg-neutral-800 h-8"
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage(currentPage + 1)}
             disabled={currentPage === totalPages || totalPages === 0}
           >
-            Next
+            {isMobile ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <>
+                <span className="mr-1">Next</span>
+                <ChevronRight className="h-4 w-4" />
+              </>
+            )}
           </Button>
         </div>
       </div>

@@ -90,6 +90,7 @@ const predefinedExpenseCategories = [
 const predefinedIncomeCategories = [
   { name: "Salary", icon: "IconDollarSign" },
   { name: "Freelance", icon: "IconBriefcase" },
+  { name: "Other", icon: "IconWrench" },
 ];
 
 export default function Onboarding() {

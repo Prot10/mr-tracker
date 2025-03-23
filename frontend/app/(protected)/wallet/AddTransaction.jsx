@@ -2,7 +2,7 @@
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Calendar } from "../../components/ui/calendar";
 import {
   DropdownMenu,
@@ -31,6 +31,69 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
+
+import {
+  Activity,
+  Airplay,
+  Anchor,
+  Aperture,
+  Book,
+  Briefcase,
+  Camera,
+  Car,
+  ChefHat,
+  Coffee,
+  Euro,
+  Film,
+  Heart,
+  Home,
+  Music,
+  Plane,
+  ShoppingCart,
+  Wrench,
+} from "lucide-react";
+
+const availableIcons = [
+  "IconRestaurant",
+  "IconCar",
+  "IconShoppingCart",
+  "IconHome",
+  "IconHealth",
+  "IconCoffee",
+  "IconBriefcase",
+  "IconDollarSign",
+  "IconActivity",
+  "IconAirplay",
+  "IconAnchor",
+  "IconAperture",
+  "IconBook",
+  "IconCamera",
+  "IconMusic",
+  "IconFilm",
+  "IconWrench",
+  "IconPlane",
+];
+
+const iconMapping = {
+  IconRestaurant: ChefHat,
+  IconCar: Car,
+  IconShoppingCart: ShoppingCart,
+  IconHome: Home,
+  IconHealth: Heart,
+  IconCoffee: Coffee,
+  IconBriefcase: Briefcase,
+  IconDollarSign: Euro,
+  IconActivity: Activity,
+  IconAirplay: Airplay,
+  IconAnchor: Anchor,
+  IconAperture: Aperture,
+  IconBook: Book,
+  IconCamera: Camera,
+  IconMusic: Music,
+  IconFilm: Film,
+  IconWrench: Wrench,
+  IconPlane: Plane,
+};
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
@@ -138,16 +201,20 @@ export function AddTransaction() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">Add Transaction</Button>
+        <Button variant="outline" className="hover:bg-neutral-800">
+          Add Transaction
+        </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
-          <DialogTitle>Add Transaction</DialogTitle>
-          <DialogDescription className="mt-4">
+          <DialogTitle className="text-xl text-white">
+            Add Transaction
+          </DialogTitle>
+          <DialogDescription className="mt-4 text-neutral-300">
             Fill in the form below to add a new transaction
           </DialogDescription>
         </DialogHeader>
-        {error && <p className="text-red-500 mb-4 text-center">{error}</p>}
+        {/* {error && <p className="text-red-500 mb-4 text-center">{error}</p>} */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Tipo */}
           <div className="grid grid-cols-4 items-center gap-4">
@@ -240,51 +307,72 @@ export function AddTransaction() {
               </SelectTrigger>
               <SelectContent className="bg-neutral-950">
                 {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.name}
+                  <SelectItem key={cat.id} value={String(cat.id)}>
+                    <div className="flex items-center space-x-2">
+                      {React.createElement(
+                        iconMapping[cat.icon] || (() => null),
+                        { className: "w-4 h-4" }
+                      )}
+                      <span>{cat.name}</span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           {/* Nuova Categoria */}
-          <div className="mt-8">
-            <p className="text-gray-300 mb-4 text-sm">
+          <div className="mt-8 grid grid-cols-1 items-center gap-4">
+            <p className="text-neutral-300 mb-2 text-sm">
               Or create a new category (optional)
             </p>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="customCategoryName" className="text-right">
-                Name
-              </Label>
+            <div className="flex space-x-4">
               <Input
                 id="customCategoryName"
                 type="text"
                 value={customCategoryName}
-                onChange={(e) => setCustomCategoryName(e.target.value)}
-                className="col-span-3"
+                onChange={(e) =>
+                  setCustomCategoryName(
+                    e.target.value
+                      ? e.target.value.charAt(0).toUpperCase() +
+                          e.target.value.slice(1).toLowerCase()
+                      : ""
+                  )
+                }
                 placeholder="Category name"
+                className="w-full px-4 h-10 rounded-md bg-neutral-950 text-white"
               />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4 mt-2">
-              <Label htmlFor="customCategoryIcon" className="text-right">
-                Icon
-              </Label>
-              <Input
-                id="customCategoryIcon"
-                type="text"
+              <Select
                 value={customCategoryIcon}
-                onChange={(e) => setCustomCategoryIcon(e.target.value)}
-                className="col-span-3"
-                placeholder="Select an icon"
-              />
+                onValueChange={setCustomCategoryIcon}
+                defaultValue=""
+                className="w-full"
+              >
+                <SelectTrigger className="w-20 h-10">
+                  <SelectValue placeholder="Icon" />
+                </SelectTrigger>
+                <SelectContent className="bg-neutral-950 w-48 p-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    {availableIcons.map((iconKey) => (
+                      <SelectItem
+                        key={iconKey}
+                        value={iconKey}
+                        className="flex items-center justify-center"
+                      >
+                        {React.createElement(
+                          iconMapping[iconKey] || (() => null),
+                          { className: "w-4 h-4" }
+                        )}
+                      </SelectItem>
+                    ))}
+                  </div>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter className="mt-8">
-            <div className="flex justify-center w-full">
-              <Button type="submit" className="w-2/5 bg-white text-black">
-                Add
-              </Button>
-            </div>
+            <Button type="submit" className="w-full bg-white text-black">
+              Add
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

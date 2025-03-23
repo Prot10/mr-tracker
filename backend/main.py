@@ -165,11 +165,16 @@ async def get_networth(
         for inv in raw_investments:
             if inv["date_of_operation"] >= as_of_date:
                 continue
+            # Check if type_of_operation is None
+            operation = inv["type_of_operation"]
+            if operation is None:
+                # Optionally log a warning here if needed
+                continue  # Skip records without a valid operation type
             key = inv["ticker"]
-            q = float(inv["quantity"])
-            if inv["type_of_operation"].lower() == "acquisto":
+            q = 0.0 if inv["quantity"] is None else float(inv["quantity"])
+            if operation.lower() == "acquisto":
                 positions[key]["net_quantity"] += q
-            elif inv["type_of_operation"].lower() == "vendita":
+            elif operation.lower() == "vendita":
                 positions[key]["net_quantity"] -= q
             positions[key]["asset_type"] = inv["asset_type"]
         return positions

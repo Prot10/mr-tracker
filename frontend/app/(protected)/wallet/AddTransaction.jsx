@@ -20,7 +20,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -98,7 +97,12 @@ const iconMapping = {
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
-export function AddTransaction() {
+export function AddTransaction({
+  open,
+  onOpenChange,
+  existingTransaction,
+  onTransactionSaved,
+}) {
   const router = useRouter();
   const [type, setType] = useState("income");
   const [amount, setAmount] = useState("");
@@ -109,7 +113,32 @@ export function AddTransaction() {
   const [customCategoryName, setCustomCategoryName] = useState("");
   const [customCategoryIcon, setCustomCategoryIcon] = useState("");
   const [error, setError] = useState(null);
-  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (existingTransaction) {
+      setType(existingTransaction.type);
+      setAmount(String(existingTransaction.amount));
+      setDescription(existingTransaction.description || "");
+      setDate(new Date(existingTransaction.transaction_date));
+      setSelectedCategoryId(
+        existingTransaction.category_id
+          ? String(existingTransaction.category_id)
+          : ""
+      );
+      // Clear any custom category fields
+      setCustomCategoryName("");
+      setCustomCategoryIcon("");
+    } else {
+      // Reset everything for a new transaction
+      setType("income");
+      setAmount("");
+      setDescription("");
+      setDate(new Date());
+      setSelectedCategoryId("");
+      setCustomCategoryName("");
+      setCustomCategoryIcon("");
+    }
+  }, [existingTransaction]);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -133,15 +162,16 @@ export function AddTransaction() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const { data } = await supabase.auth.getSession();
-    if (!data.session) {
+    if (!data?.session) {
       router.push("/login");
       return;
     }
     const token = data.session.access_token;
+
     let categoryIdToUse = selectedCategoryId;
 
     try {
-      // 1️⃣ If creating a new category, add it first
+      // If user typed a new category
       if (customCategoryName && customCategoryIcon) {
         const categoryResponse = await fetch(`${BACKEND_URL}/categories`, {
           method: "POST",
@@ -155,42 +185,68 @@ export function AddTransaction() {
             icon: customCategoryIcon,
           }),
         });
-
-        if (categoryResponse.ok) {
-          const newCategory = await categoryResponse.json();
-          categoryIdToUse = newCategory.id;
-        } else {
+        if (!categoryResponse.ok) {
           throw new Error("Error creating the category.");
         }
+        const newCategory = await categoryResponse.json();
+        categoryIdToUse = newCategory.id;
       }
 
-      // 2️⃣ Ensure a category is selected
       if (!categoryIdToUse) {
         throw new Error("Select an existing category or create a new one.");
       }
 
-      // 3️⃣ Post the transaction
-      const transactionResponse = await fetch(`${BACKEND_URL}/transactions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          type,
-          amount: parseFloat(amount),
-          description,
-          category_id: categoryIdToUse,
-          transaction_date: format(date, "yyyy-MM-dd"),
-        }),
-      });
+      // If updating
+      if (existingTransaction && existingTransaction.id) {
+        const updateResponse = await fetch(
+          `${BACKEND_URL}/transactions/${existingTransaction.id}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              type,
+              amount: parseFloat(amount),
+              description,
+              category_id: categoryIdToUse,
+              transaction_date: format(date, "yyyy-MM-dd"),
+            }),
+          }
+        );
 
-      if (!transactionResponse.ok) {
-        throw new Error("Error adding the transaction.");
+        if (!updateResponse.ok) {
+          throw new Error("Error updating transaction");
+        }
+        alert("✅ Transaction updated successfully!");
+      } else {
+        // Else creating
+        const transactionResponse = await fetch(`${BACKEND_URL}/transactions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            type,
+            amount: parseFloat(amount),
+            description,
+            category_id: categoryIdToUse,
+            transaction_date: format(date, "yyyy-MM-dd"),
+          }),
+        });
+
+        if (!transactionResponse.ok) {
+          throw new Error("Error adding transaction");
+        }
+        alert("✅ Transaction added successfully!");
       }
 
-      alert("✅ Transaction added successfully!");
-      setOpen(false);
+      onOpenChange(false);
+      if (onTransactionSaved) {
+        onTransactionSaved();
+      }
       router.push("/wallet");
     } catch (err) {
       alert(`❌ Error: ${err.message}`);
@@ -199,12 +255,7 @@ export function AddTransaction() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="hover:bg-neutral-800">
-          Add Transaction
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
           <DialogTitle className="text-xl text-white">

@@ -38,6 +38,7 @@ const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
 export default function TransactionsTable({ data }) {
+  const [transactions, setTransactions] = useState(data || []);
   const [globalFilter, setGlobalFilter] = useState("");
   const [dateFilter, setDateFilter] = useState({ start: "", end: "" });
   const [typeFilter, setTypeFilter] = useState("");
@@ -49,6 +50,28 @@ export default function TransactionsTable({ data }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const isMobile = useIsMobile();
+
+  const refreshData = async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) return;
+    const token = sessionData.session.access_token;
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/transactions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        console.error("Failed to fetch transactions");
+        return;
+      }
+      const json = await response.json();
+      if (json.transactions) {
+        setTransactions(json.transactions);
+      }
+    } catch (error) {
+      console.error("Error fetching transactions", error);
+    }
+  };
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -67,7 +90,7 @@ export default function TransactionsTable({ data }) {
   }, []);
 
   const filteredData = useMemo(() => {
-    let filtered = data;
+    let filtered = transactions;
     if (globalFilter) {
       filtered = filtered.filter((item) =>
         Object.values(item)
@@ -117,7 +140,7 @@ export default function TransactionsTable({ data }) {
     }
     return filtered;
   }, [
-    data,
+    transactions,
     globalFilter,
     dateFilter,
     typeFilter,
@@ -201,11 +224,23 @@ export default function TransactionsTable({ data }) {
   return (
     <div className="space-y-4 mx-8">
       <div className="flex gap-8 justify-between">
+        <Button
+          variant="outline"
+          onClick={() => {
+            setSelectedTransaction(null);
+            setDialogOpen(true);
+          }}
+          className="hover:bg-neutral-800"
+        >
+          Add Transaction
+        </Button>
+
         <AddTransaction
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           existingTransaction={selectedTransaction}
-          onTransactionSaved={() => {
+          onTransactionSaved={async () => {
+            await refreshData();
             console.log("Transaction updated or added.");
           }}
         />

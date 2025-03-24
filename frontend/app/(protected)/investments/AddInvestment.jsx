@@ -57,6 +57,22 @@ export function AddInvestment({
 
   const [error, setError] = useState(null);
 
+  // Add the updateInvestment method
+  const updateInvestment = async (payload, token) => {
+    const response = await fetch(
+      `${BACKEND_URL}/investments/${existingInvestment.id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+    return response;
+  };
+
   useEffect(() => {
     // If we have an existing investment, populate the fields:
     if (existingInvestment) {
@@ -89,17 +105,6 @@ export function AddInvestment({
     }
   }, [existingInvestment]);
 
-  useEffect(() => {
-    // Ensure user is logged in
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data?.session) {
-        router.push("/login");
-      }
-    };
-    checkSession();
-  }, [router]);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -125,24 +130,23 @@ export function AddInvestment({
     };
 
     try {
-      let url = `${BACKEND_URL}/investments`;
-      let method = "POST";
-
-      // If updating an existing investment:
-      if (existingInvestment && existingInvestment.id) {
-        url = `${BACKEND_URL}/investments/${existingInvestment.id}`;
-        method = "PUT";
-      }
-
       const token = session.access_token;
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
+      let response;
+
+      if (existingInvestment && existingInvestment.id) {
+        // Use updateInvestment if editing an existing investment
+        response = await updateInvestment(payload, token);
+      } else {
+        // Otherwise, create a new investment
+        response = await fetch(`${BACKEND_URL}/investments`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+      }
 
       if (!response.ok) {
         const errData = await response.json();

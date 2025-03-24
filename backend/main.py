@@ -32,17 +32,6 @@ app.add_middleware(
 
 
 #####################
-### Home endpoint ###
-#####################
-
-@app.get("/")
-def home():
-    return {"message": "Backend is up!"}
-
-
-
-
-#####################
 ### Data models  ####
 #####################
 
@@ -139,6 +128,12 @@ def validate_ticker_coingecko(ticker: str) -> bool:
 ###########################
 ### API Endpoints - GET ###
 ###########################
+
+# GET endpoint to check if the backend is up
+@app.get("/")
+def home():
+    return {"message": "Backend is up!"}
+
 
 # GET endpoint to fetch transactions
 @app.get("/transactions")
@@ -257,7 +252,7 @@ async def get_networth(
     inv_value_30 = await get_investment_value(pos_30)
 
     initial_balance = await db.fetchval(
-        "SELECT COALESCE((SELECT initial_balance FROM accounts WHERE user_id = $1), 0)", user_id
+        "SELECT COALESCE((SELECT initial_balance FROM accounts WHERE user_id = $1 LIMIT 1), 0)", user_id
     )
 
     networth_now = float(initial_balance) + float(income_30) - float(expense_30) + inv_value_now 
@@ -394,9 +389,9 @@ async def create_investment_new(
         if not new_id:
             raise HTTPException(status_code=400, detail="Impossibile aggiungere l'investimento")
         
-        # 5. Se si tratta di un "buy", crea la transazione corrispondente
+        # 5. Se si tratta di un \"buy\", crea la transazione corrispondente
         if investment.type_of_operation.lower() == "buy":
-            # a) Controlla se esiste la categoria "investimenti" per l'utente
+            # a) Controlla se esiste la categoria \"investimenti\" per l'utente
             cat_query = "SELECT id FROM categories WHERE user_id = $1 AND name = 'investimenti' LIMIT 1"
             cat_id = await db.fetchval(cat_query, user_id)
             if not cat_id:
@@ -407,14 +402,23 @@ async def create_investment_new(
                 RETURNING id;
                 """
                 cat_id = await db.fetchval(cat_insert, user_id)
-            # b) Crea la transazione
+            # b) Crea la transazione e ottieni il transaction_id
             trx_query = """
             INSERT INTO transactions 
                 (user_id, type, amount, description, category_id, transaction_date)
-            VALUES ($1, 'expense', $2, $3, $4, $5);
+            VALUES ($1, 'expense', $2, $3, $4, $5)
+            RETURNING id;
             """
             description = f"buy {investment.full_name}"
-            await db.execute(trx_query, user_id, investment.total_value, description, cat_id, op_date)
+            trx_id = await db.fetchval(trx_query, user_id, investment.total_value, description, cat_id, op_date)
+            
+            # Aggiorna l'investimento con il transaction_id ottenuto
+            update_investment_query = """
+            UPDATE investments
+            SET transaction_id = $1
+            WHERE id = $2;
+            """
+            await db.execute(update_investment_query, trx_id, new_id)
     
     return {"message": "Investment added successfully", "id": new_id}
 
@@ -567,7 +571,8 @@ async def update_investment(
             exchange = $8
         WHERE id = $9 AND user_id = $10
         RETURNING id;
-        """
+        """ 
+        # Esegui l'aggiornamento dell'investimento
         result = await db.fetchval(
             update_query,
             updated_investment.type_of_operation,
@@ -584,19 +589,23 @@ async def update_investment(
         if not result:
             raise HTTPException(status_code=404, detail="Investment not found or not authorized")
         
-        # Update the corresponding transaction, assuming you have an investment_id column in transactions
+        # Se l'operazione è "buy", aggiorna la transazione corrispondente
         if updated_investment.type_of_operation.lower() == "buy":
             trx_update_query = """
             UPDATE transactions
             SET amount = $1,
                 description = $2,
                 transaction_date = $3
-            WHERE investment_id = $4 AND user_id = $5;
+            WHERE id = $4 AND user_id = $5;
             """
             description = f"buy {updated_investment.full_name}"
-            await db.execute(trx_update_query, updated_investment.total_value, description, op_date, investment_id, user_id)
+            # Recupera il transaction_id associato all'investimento
+            trx_id = await db.fetchval("SELECT transaction_id FROM investments WHERE id = $1", investment_id)
+            if trx_id:
+                await db.execute(trx_update_query, updated_investment.total_value, description, op_date, trx_id, user_id)
+            
+            return {"message": "Investment updated successfully", "id": result}
         
-        return {"message": "Investment updated successfully", "id": result}
     except asyncpg.PostgresError as e:
         logger.error(f"❌ Database error during investment update: {e}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -639,10 +648,12 @@ async def delete_investment(
     db: asyncpg.Connection = Depends(get_db)
 ):
     try:
-        # First delete the corresponding transaction
-        await db.execute("DELETE FROM transactions WHERE investment_id = $1 AND user_id = $2", investment_id, user_id)
+        # Prima elimina la transazione corrispondente
+        trx_id = await db.fetchval("SELECT transaction_id FROM investments WHERE id = $1", investment_id)
+        if trx_id:
+            await db.execute("DELETE FROM transactions WHERE id = $1 AND user_id = $2", trx_id, user_id)
         
-        # Then delete the investment
+        # Poi elimina l'investimento
         delete_query = """
         DELETE FROM investments
         WHERE id = $1 AND user_id = $2

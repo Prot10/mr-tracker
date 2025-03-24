@@ -95,7 +95,7 @@ export function AppSidebar() {
   const handleDeleteTransactions = async () => {
     try {
       const token = await getAuthToken();
-      const res = await fetch(`${BACKEND_URL}/transactions/all`, {
+      const res = await fetch(`${BACKEND_URL}/all-transactions`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -113,7 +113,7 @@ export function AppSidebar() {
   const handleDeleteInvestments = async () => {
     try {
       const token = await getAuthToken();
-      const res = await fetch(`${BACKEND_URL}/investments/all`, {
+      const res = await fetch(`${BACKEND_URL}/all-investments`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -131,7 +131,7 @@ export function AppSidebar() {
   const handleDeleteAccountData = async () => {
     try {
       const token = await getAuthToken();
-      const res = await fetch(`${BACKEND_URL}/account/data`, {
+      const res = await fetch(`${BACKEND_URL}/account-data`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

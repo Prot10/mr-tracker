@@ -222,6 +222,7 @@ export default function TransactionsTable({ data }) {
       }
 
       console.log("Transaction deleted successfully");
+      await refreshData();
     } catch (error) {
       console.error("Error deleting transaction", error);
     }

@@ -391,14 +391,14 @@ async def create_investment_new(
         
         # 5. Se si tratta di un \"buy\", crea la transazione corrispondente
         if investment.type_of_operation.lower() == "buy":
-            # a) Controlla se esiste la categoria \"investimenti\" per l'utente
-            cat_query = "SELECT id FROM categories WHERE user_id = $1 AND name = 'investimenti' LIMIT 1"
+            # a) Controlla se esiste la categoria \"investments\" per l'utente
+            cat_query = "SELECT id FROM categories WHERE user_id = $1 AND name = 'investments' LIMIT 1"
             cat_id = await db.fetchval(cat_query, user_id)
             if not cat_id:
                 # Se non esiste, la crea
                 cat_insert = """
                 INSERT INTO categories (user_id, type, name, icon)
-                VALUES ($1, 'expense', 'investimenti', 'IconChart')
+                VALUES ($1, 'expense', 'investments', 'IconChart')
                 RETURNING id;
                 """
                 cat_id = await db.fetchval(cat_insert, user_id)

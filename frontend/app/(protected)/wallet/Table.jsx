@@ -569,7 +569,10 @@ export default function TransactionsTable({ data }) {
                     {row.type.charAt(0).toUpperCase() + row.type.slice(1)}
                   </TableCell>
                   <TableCell className="px-4 py-2 whitespace-nowrap text-sm text-gray-200">
-                    {category ? category.name : "—"}
+                    {category
+                      ? category.name.charAt(0).toUpperCase() +
+                        category.name.slice(1)
+                      : "—"}
                   </TableCell>
                   <TableCell className="px-4 py-2 whitespace-nowrap text-sm text-gray-200">
                     {row.amount}
@@ -584,27 +587,48 @@ export default function TransactionsTable({ data }) {
                       : ""}
                   </TableCell>
                   <TableCell className="px-4 py-2 whitespace-nowrap text-sm text-gray-200">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent className="bg-neutral-950">
-                        <DropdownMenuItem
-                          className="text-blue-500"
-                          onClick={() => handleUpdate(row)}
-                        >
-                          Update
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-red-500"
-                          onClick={() => handleDelete(row.id)}
-                        >
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {category &&
+                    category.name.toLowerCase() === "investments" ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-neutral-950">
+                          <DropdownMenuItem
+                            className="text-indigo-500"
+                            onClick={() =>
+                              (window.location.href = "/investments")
+                            }
+                          >
+                            Use Investments Table
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-neutral-950">
+                          <DropdownMenuItem
+                            className="text-blue-500"
+                            onClick={() => handleUpdate(row)}
+                          >
+                            Update
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-red-500"
+                            onClick={() => handleDelete(row.id)}
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </TableCell>
                 </TableRow>
               );

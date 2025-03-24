@@ -1,4 +1,5 @@
 "use client";
+
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -426,7 +427,10 @@ export function AddTransaction({
             </div>
           </div>
           <DialogFooter className="mt-8">
-            <Button type="submit" className="w-full bg-white text-black">
+            <Button
+              type="submit"
+              className="w-full bg-indigo-700 hover:bg-indigo-600 text-white"
+            >
               Add
             </Button>
           </DialogFooter>

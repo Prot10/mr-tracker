@@ -12,10 +12,14 @@ from pycoingecko import CoinGeckoAPI
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
-
 app = FastAPI()
 
-# Enable CORS to allow requests from the frontend
+
+
+#######################################################
+### Enable CORS to allow requests from the frontend ###
+#######################################################
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "https://mr-tracker.vercel.app"],
@@ -24,13 +28,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+
+
+#####################
+### Home endpoint ###
+#####################
+
 @app.get("/")
 def home():
     return {"message": "Backend is up!"}
 
 
-# Models to validate incoming data
 
+
+#####################
+### Data models  ####
+#####################
+
+# Transaction model
 class Transaction(BaseModel):
     type: str  # "income" or "expense"
     amount: float
@@ -38,6 +54,8 @@ class Transaction(BaseModel):
     category_id: Optional[int] = None
     transaction_date: Optional[str] = None
 
+
+# Investment model
 class Investment(BaseModel):
     type_of_operation: str         # "buy" o "sell"
     asset_type: str                # "stock", "ETF" o "crypto"
@@ -48,29 +66,41 @@ class Investment(BaseModel):
     date_of_operation: str         # formato "YYYY-MM-DD"
     exchange: Optional[str] = None
 
-# New model for user registration
+
+# User model
 class UserCreate(BaseModel):
     email: str
     password: str
     name: str
     
+    
+# Category model
 class CategoryData(BaseModel):
     name: str
     icon: str
 
+
+# Onboarding data model
 class OnboardingData(BaseModel):
     initial_balance: float
     expense_categories: List[CategoryData]
     income_categories: List[CategoryData]
     
-
+    
+# Category creation model
 class CategoryCreate(BaseModel):
     type: str  # "income" or "expense"
     name: str
     icon: str
 
 
-# Funzioni di validazione del ticker
+
+
+########################
+### Helper functions ###
+########################
+
+# Function to validate a ticker symbol using yfinance
 def validate_ticker_yfinance(ticker: str) -> bool:
     try:
         if not ticker:
@@ -85,6 +115,8 @@ def validate_ticker_yfinance(ticker: str) -> bool:
     except Exception:
         return False
 
+
+# Function to validate a ticker symbol using CoinGecko
 def validate_ticker_coingecko(ticker: str) -> bool:
     try:
         if not ticker:
@@ -102,8 +134,13 @@ def validate_ticker_coingecko(ticker: str) -> bool:
         return False
 
 
-# GET endpoints
 
+
+###########################
+### API Endpoints - GET ###
+###########################
+
+# GET endpoint to fetch transactions
 @app.get("/transactions")
 async def get_transactions(
     user_id: str = Depends(verify_token),
@@ -113,6 +150,8 @@ async def get_transactions(
     transactions = await db.fetch(query, user_id)
     return {"transactions": [dict(t) for t in transactions]}
 
+
+# GET endpoint to fetch investments
 @app.get("/investments")
 async def get_investments(
     user_id: str = Depends(verify_token),
@@ -122,6 +161,8 @@ async def get_investments(
     investments = await db.fetch(query, user_id)
     return {"investments": [dict(t) for t in investments]}
 
+
+# GET endpoint to fetch account data and compute net worth
 @app.get("/networth")
 async def get_networth(
     user_id: str = Depends(verify_token),
@@ -131,6 +172,7 @@ async def get_networth(
     start_30 = today - timedelta(days=30)
     start_60 = today - timedelta(days=60)
 
+    # Function to get sum of transactions
     async def get_sum(start_date, end_date, trx_type):
         query = """
             SELECT COALESCE(SUM(amount), 0)
@@ -144,6 +186,7 @@ async def get_networth(
     expense_30 = await get_sum(start_30, today, "expense")
     expense_60 = await get_sum(start_60, start_30, "expense")
 
+    # Function to calculate percentage change
     def percentage_change(current, previous):
         if previous == 0:
             return 100.0 if current > 0 else 0.0
@@ -160,6 +203,7 @@ async def get_networth(
     raw_investments = await db.fetch(investments_query, user_id)
 
     from collections import defaultdict
+    # Function to compute positions
     def compute_positions(as_of_date):
         positions = defaultdict(lambda: {"asset_type": "", "net_quantity": 0.0})
         for inv in raw_investments:
@@ -179,6 +223,7 @@ async def get_networth(
             positions[key]["asset_type"] = inv["asset_type"]
         return positions
 
+    # Function to get investment value
     async def get_investment_value(positions):
         total_value = 0.0
         for ticker, data in positions.items():
@@ -212,7 +257,7 @@ async def get_networth(
     inv_value_30 = await get_investment_value(pos_30)
 
     initial_balance = await db.fetchval(
-        "SELECT COALESCE(initial_balance, 0) FROM accounts WHERE user_id = $1", user_id
+        "SELECT COALESCE((SELECT initial_balance FROM accounts WHERE user_id = $1), 0)", user_id
     )
 
     networth_now = float(initial_balance) + float(income_30) - float(expense_30) + inv_value_now 
@@ -229,6 +274,28 @@ async def get_networth(
         "investment_value_now": round(inv_value_now, 2),
         "investment_value_30_days_ago": round(inv_value_30, 2)
     }
+
+# GET endpoint to fetch categories
+@app.get("/categories")
+async def get_categories(
+    user_id: str = Depends(verify_token),
+    db: asyncpg.Connection = Depends(get_db)
+):
+    query = """
+    SELECT id, type, name, icon
+    FROM categories
+    WHERE user_id = $1
+    ORDER BY id
+    """
+    records = await db.fetch(query, user_id)
+    return [dict(r) for r in records]
+
+
+
+
+############################
+### API Endpoints - POST ###
+############################
 
 # POST endpoint to create transactions
 @app.post("/transactions")
@@ -267,28 +334,177 @@ async def create_transaction(
     except asyncpg.PostgresError as e:
         logger.error(f"❌ Database error during transaction insert: {e}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    
+    
+# POST endpoint to create investments
+@app.post("/investments", status_code=status.HTTP_201_CREATED)
+async def create_investment_new(
+    investment: Investment,
+    user_id: str = Depends(verify_token),
+    db: asyncpg.Connection = Depends(get_db),
+):
+    # 1. Validazione del ticker in base al tipo di asset
+    if investment.asset_type.lower() in ["stock", "etf"]:
+        valid = validate_ticker_yfinance(investment.ticker)
+    elif investment.asset_type.lower() == "crypto":
+        valid = validate_ticker_coingecko(investment.ticker)
+    else:
+        raise HTTPException(status_code=400, detail=f"Asset type {investment.asset_type} non supportato")
+    if not valid:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{investment.ticker} non supportato, controllare se il nome è corretto o riprovare in futuro"
+        )
+    
+    # 2. Parsing della data
+    try:
+        op_date = datetime.strptime(investment.date_of_operation, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Formato data non valido")
+    
+    async with db.transaction():
+        # 4. Inserisci l'investimento
+        insert_query = """
+        INSERT INTO investments (
+            user_id,
+            type_of_operation,
+            asset_type,
+            ticker,
+            full_name,
+            quantity,
+            total_value,
+            date_of_operation,
+            exchange
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id;
+        """
+        new_id = await db.fetchval(
+            insert_query,
+            user_id,
+            investment.type_of_operation,
+            investment.asset_type,
+            investment.ticker,
+            investment.full_name,
+            investment.quantity,
+            investment.total_value,
+            op_date,
+            investment.exchange,
+        )
+        if not new_id:
+            raise HTTPException(status_code=400, detail="Impossibile aggiungere l'investimento")
+        
+        # 5. Se si tratta di un "buy", crea la transazione corrispondente
+        if investment.type_of_operation.lower() == "buy":
+            # a) Controlla se esiste la categoria "investimenti" per l'utente
+            cat_query = "SELECT id FROM categories WHERE user_id = $1 AND name = 'investimenti' LIMIT 1"
+            cat_id = await db.fetchval(cat_query, user_id)
+            if not cat_id:
+                # Se non esiste, la crea
+                cat_insert = """
+                INSERT INTO categories (user_id, type, name, icon)
+                VALUES ($1, 'expense', 'investimenti', 'IconChart')
+                RETURNING id;
+                """
+                cat_id = await db.fetchval(cat_insert, user_id)
+            # b) Crea la transazione
+            trx_query = """
+            INSERT INTO transactions 
+                (user_id, type, amount, description, category_id, transaction_date)
+            VALUES ($1, 'expense', $2, $3, $4, $5);
+            """
+            description = f"buy {investment.full_name}"
+            await db.execute(trx_query, user_id, investment.total_value, description, cat_id, op_date)
+    
+    return {"message": "Investment added successfully", "id": new_id}
 
-@app.delete("/transactions/{transaction_id}")
-async def delete_transaction(
-    transaction_id: int,
+
+# POST endpoint for user registration
+@app.post("/register", status_code=status.HTTP_201_CREATED)
+async def register_user(user: UserCreate, db: asyncpg.Connection = Depends(get_db)):
+    query = """
+    INSERT INTO users (email, password, name)
+    VALUES ($1, $2, $3)
+    RETURNING id, email, name;
+    """
+    result = await db.fetchrow(query, user.email, user.password, user.name)
+    if result:
+        return {"id": result["id"], "email": result["email"], "name": result["name"]}
+    raise HTTPException(status_code=400, detail="Error registering user")
+
+
+# POST endpoint to complete onboarding
+@app.post("/onboarding")
+async def complete_onboarding(
+    data: OnboardingData,
     user_id: str = Depends(verify_token),
     db: asyncpg.Connection = Depends(get_db)
 ):
-    try:
-        # Make sure transaction belongs to this user
-        delete_query = """
-        DELETE FROM transactions
-        WHERE id = $1 AND user_id = $2
-        RETURNING id;
-        """
-        deleted_id = await db.fetchval(delete_query, transaction_id, user_id)
-        if not deleted_id:
-            raise HTTPException(status_code=404, detail="Transaction not found or not authorized")
-        return {"message": "Transaction deleted successfully"}
-    except asyncpg.PostgresError as e:
-        logger.error(f"❌ Database error during transaction delete: {e}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    if data.initial_balance < 0:
+        raise HTTPException(status_code=400, detail="Initial balance must be positive or 0")
+    
+    # Insert into accounts table
+    await db.execute(
+        "INSERT INTO accounts (user_id, initial_balance) VALUES ($1, $2)",
+        user_id, data.initial_balance
+    )
+    
+    # Insert expense categories
+    for cat in data.expense_categories:
+        await db.execute(
+            "INSERT INTO categories (user_id, type, name, icon) VALUES ($1, 'expense', $2, $3)",
+            user_id, cat.name, cat.icon
+        )
+    
+    # Insert income categories
+    for cat in data.income_categories:
+        await db.execute(
+            "INSERT INTO categories (user_id, type, name, icon) VALUES ($1, 'income', $2, $3)",
+            user_id, cat.name, cat.icon
+        )
+    
+    return {"message": "Onboarding completed successfully"}
 
+
+# POST endpoint to create categories
+@app.post("/categories", status_code=status.HTTP_201_CREATED)
+async def create_category(
+    category: CategoryCreate,
+    user_id: str = Depends(verify_token),
+    db: asyncpg.Connection = Depends(get_db)
+):
+    query = """
+    INSERT INTO categories (user_id, type, name, icon)
+    VALUES ($1, $2, $3, $4)
+    RETURNING id, type, name, icon
+    """
+    result = await db.fetchrow(
+        query,
+        user_id,
+        category.type,
+        category.name,
+        category.icon
+    )
+    if result:
+        return {
+            "id": result["id"],
+            "type": result["type"],
+            "name": result["name"],
+            "icon": result["icon"]
+        }
+    raise HTTPException(
+        status_code=400,
+        detail="Error creating category"
+    )
+
+
+
+
+###########################
+### API Endpoints - PUT ###
+###########################
+
+# PUT endpoint to update transactions
 @app.put("/transactions/{transaction_id}")
 async def update_transaction(
     transaction_id: int,
@@ -327,186 +543,122 @@ async def update_transaction(
     except asyncpg.PostgresError as e:
         logger.error(f"❌ Database error during transaction update: {e}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    
 
-# POST endpoint to create investments
-@app.post("/investments", status_code=status.HTTP_201_CREATED)
-async def create_investment_new(
-    investment: Investment,
+# PUT endpoint to update investments
+@app.put("/investments/{investment_id}")
+async def update_investment(
+    investment_id: int,
+    updated_investment: Investment,
     user_id: str = Depends(verify_token),
-    db: asyncpg.Connection = Depends(get_db),
+    db: asyncpg.Connection = Depends(get_db)
 ):
-    # 1. Validazione del ticker in base al tipo di asset
-    if investment.asset_type.lower() in ["stock", "etf"]:
-        valid = validate_ticker_yfinance(investment.ticker)
-    elif investment.asset_type.lower() == "crypto":
-        valid = validate_ticker_coingecko(investment.ticker)
-    else:
-        raise HTTPException(status_code=400, detail=f"Asset type {investment.asset_type} non supportato")
-    if not valid:
-        raise HTTPException(
-            status_code=400,
-            detail=f"{investment.ticker} non supportato, controllare se il nome è corretto o riprovare in futuro"
-        )
-    
-    # 2. Parsing della data
     try:
-        op_date = datetime.strptime(investment.date_of_operation, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Formato data non valido")
-    
-    # 3. Calcolo del prezzo per unità (price_per_unit)
-    if investment.quantity <= 0:
-        raise HTTPException(status_code=400, detail="La quantità deve essere maggiore di 0")
-    price_per_unit = investment.total_value / investment.quantity
-
-    async with db.transaction():
-        # 4. Inserisci l'investimento
-        insert_query = """
-        INSERT INTO investments (
-            user_id,
-            type_of_operation,
-            asset_type,
-            ticker,
-            full_name,
-            quantity,
-            price_per_unit,
-            total_value,
-            date_of_operation,
-            exchange
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        op_date = datetime.strptime(updated_investment.date_of_operation, "%Y-%m-%d").date()
+        update_query = """
+        UPDATE investments
+        SET type_of_operation = $1,
+            asset_type = $2,
+            ticker = $3,
+            full_name = $4,
+            quantity = $5,
+            total_value = $6,
+            date_of_operation = $7,
+            exchange = $8
+        WHERE id = $9 AND user_id = $10
         RETURNING id;
         """
-        new_id = await db.fetchval(
-            insert_query,
-            user_id,
-            investment.type_of_operation,
-            investment.asset_type,
-            investment.ticker,
-            investment.full_name,
-            investment.quantity,
-            price_per_unit,
-            investment.total_value,
+        result = await db.fetchval(
+            update_query,
+            updated_investment.type_of_operation,
+            updated_investment.asset_type,
+            updated_investment.ticker,
+            updated_investment.full_name,
+            updated_investment.quantity,
+            updated_investment.total_value,
             op_date,
-            investment.exchange,
+            updated_investment.exchange,
+            investment_id,
+            user_id
         )
-        if not new_id:
-            raise HTTPException(status_code=400, detail="Impossibile aggiungere l'investimento")
+        if not result:
+            raise HTTPException(status_code=404, detail="Investment not found or not authorized")
         
-        # 5. Se si tratta di un "buy", crea la transazione corrispondente
-        if investment.type_of_operation.lower() == "buy":
-            # a) Controlla se esiste la categoria "investimenti" per l'utente
-            cat_query = "SELECT id FROM categories WHERE user_id = $1 AND name = 'investimenti' LIMIT 1"
-            cat_id = await db.fetchval(cat_query, user_id)
-            if not cat_id:
-                # Se non esiste, la crea
-                cat_insert = """
-                INSERT INTO categories (user_id, type, name, icon)
-                VALUES ($1, 'expense', 'investimenti', 'IconChart')
-                RETURNING id;
-                """
-                cat_id = await db.fetchval(cat_insert, user_id)
-            # b) Crea la transazione
-            trx_query = """
-            INSERT INTO transactions 
-                (user_id, type, amount, description, category_id, transaction_date)
-            VALUES ($1, 'expense', $2, $3, $4, $5);
+        # Update the corresponding transaction, assuming you have an investment_id column in transactions
+        if updated_investment.type_of_operation.lower() == "buy":
+            trx_update_query = """
+            UPDATE transactions
+            SET amount = $1,
+                description = $2,
+                transaction_date = $3
+            WHERE investment_id = $4 AND user_id = $5;
             """
-            description = f"buy {investment.full_name}"
-            await db.execute(trx_query, user_id, investment.total_value, description, cat_id, op_date)
+            description = f"buy {updated_investment.full_name}"
+            await db.execute(trx_update_query, updated_investment.total_value, description, op_date, investment_id, user_id)
+        
+        return {"message": "Investment updated successfully", "id": result}
+    except asyncpg.PostgresError as e:
+        logger.error(f"❌ Database error during investment update: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     
-    return {"message": "Investment added successfully", "id": new_id}
+    
+    
+    
+##############################
+### API Endpoints - DELETE ###
+##############################
 
-@app.get("/categories")
-async def get_categories(
+# DELETE endpoint to delete a transaction
+@app.delete("/transactions/{transaction_id}")
+async def delete_transaction(
+    transaction_id: int,
     user_id: str = Depends(verify_token),
     db: asyncpg.Connection = Depends(get_db)
 ):
-    query = """
-    SELECT id, type, name, icon
-    FROM categories
-    WHERE user_id = $1
-    ORDER BY id
-    """
-    records = await db.fetch(query, user_id)
-    return [dict(r) for r in records]
+    try:
+        # Make sure transaction belongs to this user
+        delete_query = """
+        DELETE FROM transactions
+        WHERE id = $1 AND user_id = $2
+        RETURNING id;
+        """
+        deleted_id = await db.fetchval(delete_query, transaction_id, user_id)
+        if not deleted_id:
+            raise HTTPException(status_code=404, detail="Transaction not found or not authorized")
+        return {"message": "Transaction deleted successfully"}
+    except asyncpg.PostgresError as e:
+        logger.error(f"❌ Database error during transaction delete: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-# New POST endpoint for user registration
-@app.post("/register", status_code=status.HTTP_201_CREATED)
-async def register_user(user: UserCreate, db: asyncpg.Connection = Depends(get_db)):
-    query = """
-    INSERT INTO users (email, password, name)
-    VALUES ($1, $2, $3)
-    RETURNING id, email, name;
-    """
-    result = await db.fetchrow(query, user.email, user.password, user.name)
-    if result:
-        return {"id": result["id"], "email": result["email"], "name": result["name"]}
-    raise HTTPException(status_code=400, detail="Error registering user")
 
-@app.post("/onboarding")
-async def complete_onboarding(
-    data: OnboardingData,
+# DELETE endpoint to delete an investment
+@app.delete("/investments/{investment_id}")
+async def delete_investment(
+    investment_id: int,
     user_id: str = Depends(verify_token),
     db: asyncpg.Connection = Depends(get_db)
 ):
-    if data.initial_balance < 0:
-        raise HTTPException(status_code=400, detail="Initial balance must be positive or 0")
+    try:
+        # First delete the corresponding transaction
+        await db.execute("DELETE FROM transactions WHERE investment_id = $1 AND user_id = $2", investment_id, user_id)
+        
+        # Then delete the investment
+        delete_query = """
+        DELETE FROM investments
+        WHERE id = $1 AND user_id = $2
+        RETURNING id;
+        """
+        deleted_id = await db.fetchval(delete_query, investment_id, user_id)
+        if not deleted_id:
+            raise HTTPException(status_code=404, detail="Investment not found or not authorized")
+        return {"message": "Investment deleted successfully"}
+    except asyncpg.PostgresError as e:
+        logger.error(f"❌ Database error during investment delete: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     
-    # Insert into accounts table
-    await db.execute(
-        "INSERT INTO accounts (user_id, initial_balance) VALUES ($1, $2)",
-        user_id, data.initial_balance
-    )
-    
-    # Insert expense categories
-    for cat in data.expense_categories:
-        await db.execute(
-            "INSERT INTO categories (user_id, type, name, icon) VALUES ($1, 'expense', $2, $3)",
-            user_id, cat.name, cat.icon
-        )
-    
-    # Insert income categories
-    for cat in data.income_categories:
-        await db.execute(
-            "INSERT INTO categories (user_id, type, name, icon) VALUES ($1, 'income', $2, $3)",
-            user_id, cat.name, cat.icon
-        )
-    
-    return {"message": "Onboarding completed successfully"}
 
-@app.post("/categories", status_code=status.HTTP_201_CREATED)
-async def create_category(
-    category: CategoryCreate,
-    user_id: str = Depends(verify_token),
-    db: asyncpg.Connection = Depends(get_db)
-):
-    query = """
-    INSERT INTO categories (user_id, type, name, icon)
-    VALUES ($1, $2, $3, $4)
-    RETURNING id, type, name, icon
-    """
-    result = await db.fetchrow(
-        query,
-        user_id,
-        category.type,
-        category.name,
-        category.icon
-    )
-    if result:
-        return {
-            "id": result["id"],
-            "type": result["type"],
-            "name": result["name"],
-            "icon": result["icon"]
-        }
-    raise HTTPException(
-        status_code=400,
-        detail="Error creating category"
-    )
-
-# Account actions
-@app.delete("/transactions/all")
+# DELETE endpoint to delete all transactions
+@app.delete("/all-transactions")
 async def delete_all_transactions(
     user_id: str = Depends(verify_token),
     db: asyncpg.Connection = Depends(get_db)
@@ -514,7 +666,9 @@ async def delete_all_transactions(
     await db.execute("DELETE FROM transactions WHERE user_id = $1", user_id)
     return {"message": "All transactions deleted successfully"}
 
-@app.delete("/investments/all")
+
+# DELETE endpoint to delete all investments
+@app.delete("/all-investments")
 async def delete_all_investments(
     user_id: str = Depends(verify_token),
     db: asyncpg.Connection = Depends(get_db)
@@ -522,19 +676,26 @@ async def delete_all_investments(
     await db.execute("DELETE FROM investments WHERE user_id = $1", user_id)
     return {"message": "All investments deleted successfully"}
 
-@app.delete("/account/data")
+
+# DELETE endpoint to delete all account data
+@app.delete("/account-data")
 async def delete_account_data(
     user_id: str = Depends(verify_token),
     db: asyncpg.Connection = Depends(get_db)
 ):
-    await db.execute("DELETE FROM accounts WHERE user_id = $1", user_id)
+    await db.execute("DELETE FROM transactions WHERE user_id = $1", user_id)
+    await db.execute("DELETE FROM investments WHERE user_id = $1", user_id)
     return {"message": "Account data deleted successfully"}
 
+
+# DELETE endpoint to delete an account
 @app.delete("/account")
 async def delete_account(
     user_id: str = Depends(verify_token),
     db: asyncpg.Connection = Depends(get_db)
 ):
+    await db.execute("DELETE FROM transactions WHERE user_id = $1", user_id)
+    await db.execute("DELETE FROM investments WHERE user_id = $1", user_id)
     deleted_id = await db.fetchval("DELETE FROM users WHERE id = $1 RETURNING id", user_id)
     if not deleted_id:
         raise HTTPException(status_code=404, detail="User not found")

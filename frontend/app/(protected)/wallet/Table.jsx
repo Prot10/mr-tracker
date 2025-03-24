@@ -241,7 +241,7 @@ export default function TransactionsTable({ data }) {
             setSelectedTransaction(null);
             setDialogOpen(true);
           }}
-          className="hover:bg-neutral-800"
+          className="bg-indigo-700 hover:bg-indigo-600"
         >
           Add Transaction
         </Button>

@@ -504,3 +504,38 @@ async def create_category(
         status_code=400,
         detail="Error creating category"
     )
+
+# Account actions
+@app.delete("/transactions/all")
+async def delete_all_transactions(
+    user_id: str = Depends(verify_token),
+    db: asyncpg.Connection = Depends(get_db)
+):
+    await db.execute("DELETE FROM transactions WHERE user_id = $1", user_id)
+    return {"message": "All transactions deleted successfully"}
+
+@app.delete("/investments/all")
+async def delete_all_investments(
+    user_id: str = Depends(verify_token),
+    db: asyncpg.Connection = Depends(get_db)
+):
+    await db.execute("DELETE FROM investments WHERE user_id = $1", user_id)
+    return {"message": "All investments deleted successfully"}
+
+@app.delete("/account/data")
+async def delete_account_data(
+    user_id: str = Depends(verify_token),
+    db: asyncpg.Connection = Depends(get_db)
+):
+    await db.execute("DELETE FROM accounts WHERE user_id = $1", user_id)
+    return {"message": "Account data deleted successfully"}
+
+@app.delete("/account")
+async def delete_account(
+    user_id: str = Depends(verify_token),
+    db: asyncpg.Connection = Depends(get_db)
+):
+    deleted_id = await db.fetchval("DELETE FROM users WHERE id = $1 RETURNING id", user_id)
+    if not deleted_id:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"message": "Account deleted successfully"}

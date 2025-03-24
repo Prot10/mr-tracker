@@ -282,6 +282,35 @@ export function AddTransaction({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Categoria */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="category" className="text-right">
+              Category
+            </Label>
+            <Select
+              value={selectedCategoryId}
+              onValueChange={setSelectedCategoryId}
+            >
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Select a category" />
+              </SelectTrigger>
+              <SelectContent className="bg-neutral-950">
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={String(cat.id)}>
+                    <div className="flex items-center space-x-2">
+                      {React.createElement(
+                        iconMapping[cat.icon] || (() => null),
+                        { className: "w-4 h-4" }
+                      )}
+                      <span>{cat.name}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Importo */}
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="amount" className="text-right">
@@ -296,20 +325,7 @@ export function AddTransaction({
               placeholder="Enter the amount"
             />
           </div>
-          {/* Descrizione */}
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="description" className="text-right">
-              Description
-            </Label>
-            <Input
-              id="description"
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="col-span-3"
-              placeholder="Enter a description"
-            />
-          </div>
+
           {/* Date */}
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="date" className="text-right">
@@ -344,33 +360,22 @@ export function AddTransaction({
               </DropdownMenu>
             </div>
           </div>
-          {/* Categoria */}
+
+          {/* Descrizione */}
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="category" className="text-right">
-              Category
+            <Label htmlFor="description" className="text-right">
+              Description
             </Label>
-            <Select
-              value={selectedCategoryId}
-              onValueChange={setSelectedCategoryId}
-            >
-              <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="Select a category" />
-              </SelectTrigger>
-              <SelectContent className="bg-neutral-950">
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={String(cat.id)}>
-                    <div className="flex items-center space-x-2">
-                      {React.createElement(
-                        iconMapping[cat.icon] || (() => null),
-                        { className: "w-4 h-4" }
-                      )}
-                      <span>{cat.name}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input
+              id="description"
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="col-span-3"
+              placeholder="Enter a description"
+            />
           </div>
+
           {/* Nuova Categoria */}
           <div className="mt-8 grid grid-cols-1 items-center gap-4">
             <p className="text-neutral-300 mb-2 text-sm">

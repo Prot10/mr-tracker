@@ -22,13 +22,13 @@ export default function HomePage() {
         <div className="flex flex-col md:flex-row gap-4 justify-center">
           <Link
             href="/login"
-            className="md:w-1/4 px-6 py-3 bg-neutral-900 hover:bg-neutral-800 text-white rounded-md text-lg font-medium transition border border-neutral-300"
+            className="md:w-1/4 px-6 py-2 bg-neutral-950 hover:bg-neutral-800 text-white rounded-md text-lg font-medium transition border border-neutral-300"
           >
             Login
           </Link>
           <Link
             href="/signup"
-            className="md:w-1/4 px-6 py-3 bg-indigo-700 hover:bg-indigo-600 text-white rounded-md text-lg font-medium transition border border-neutral-300"
+            className="md:w-1/4 px-6 py-2 bg-indigo-700 hover:bg-indigo-600 text-white rounded-md text-lg font-medium transition border border-neutral-300"
           >
             Signup
           </Link>

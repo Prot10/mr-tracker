@@ -39,7 +39,7 @@ class Transaction(BaseModel):
     transaction_date: Optional[str] = None
 
 class Investment(BaseModel):
-    type_of_operation: str         # "acquisto" o "vendita"
+    type_of_operation: str         # "buy" o "sell"
     asset_type: str                # "stock", "ETF" o "crypto"
     ticker: str                    # es. "AAPL", "BTC", "VUSA.L"
     full_name: str                 # es. "Apple", "Bitcoin"
@@ -172,9 +172,9 @@ async def get_networth(
                 continue  # Skip records without a valid operation type
             key = inv["ticker"]
             q = 0.0 if inv["quantity"] is None else float(inv["quantity"])
-            if operation.lower() == "acquisto":
+            if operation.lower() == "buy":
                 positions[key]["net_quantity"] += q
-            elif operation.lower() == "vendita":
+            elif operation.lower() == "sell":
                 positions[key]["net_quantity"] -= q
             positions[key]["asset_type"] = inv["asset_type"]
         return positions
@@ -393,8 +393,8 @@ async def create_investment_new(
         if not new_id:
             raise HTTPException(status_code=400, detail="Impossibile aggiungere l'investimento")
         
-        # 5. Se si tratta di un "acquisto", crea la transazione corrispondente
-        if investment.type_of_operation.lower() == "acquisto":
+        # 5. Se si tratta di un "buy", crea la transazione corrispondente
+        if investment.type_of_operation.lower() == "buy":
             # a) Controlla se esiste la categoria "investimenti" per l'utente
             cat_query = "SELECT id FROM categories WHERE user_id = $1 AND name = 'investimenti' LIMIT 1"
             cat_id = await db.fetchval(cat_query, user_id)
@@ -412,7 +412,7 @@ async def create_investment_new(
                 (user_id, type, amount, description, category_id, transaction_date)
             VALUES ($1, 'expense', $2, $3, $4, $5);
             """
-            description = f"acquisto {investment.full_name}"
+            description = f"buy {investment.full_name}"
             await db.execute(trx_query, user_id, investment.total_value, description, cat_id, op_date)
     
     return {"message": "Investment added successfully", "id": new_id}

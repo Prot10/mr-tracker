@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { SectionCards } from "./section-cards";
+import { HistoryChart } from "./HistoryChart";
+import { SectionCards } from "./SectionCards";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
@@ -82,6 +83,9 @@ export default function Homepage() {
       <div className="@container/main flex flex-1 flex-col gap-2">
         <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
           <SectionCards cardsData={cardsData} />
+          <div className="px-4 lg:px-6">
+            <HistoryChart />
+          </div>
         </div>
       </div>
     </div>

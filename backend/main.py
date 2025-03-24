@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from datetime import date, datetime, timedelta
 from typing import List, Optional
 
@@ -711,3 +712,245 @@ async def delete_account(
     if not deleted_id:
         raise HTTPException(status_code=404, detail="User not found")
     return {"message": "Account deleted successfully"}
+
+
+
+
+#############################
+### API Endpoints - PLOTS ###
+#############################
+
+@app.get("/networth-history")
+async def get_networth_history(
+    range_days: int = 90,
+    user_id: str = Depends(verify_token),
+    db = Depends(get_db)
+):
+    """
+    Calcola e restituisce un array di oggetti (date, networth, investments)
+    giorno per giorno, negli ultimi 'range_days' giorni (max 90, 60, 30, etc).
+    Se la prima transazione è più recente di (oggi - range_days),
+    per i giorni precedenti al primo record networth = 0.
+    """
+
+    # 1) Determina la data di inizio (start_date) e la data odierna
+    today = date.today()
+
+    # Ricava la data più vecchia tra transazioni e investimenti
+    earliest_date_query = """
+        SELECT MIN(t1) AS earliest
+        FROM (
+            SELECT MIN(transaction_date) AS t1 FROM transactions WHERE user_id = $1
+            UNION
+            SELECT MIN(date_of_operation) AS t1 FROM investments WHERE user_id = $1
+        ) as sub
+    """
+    earliest_date = await db.fetchval(earliest_date_query, user_id)
+    if earliest_date is None:
+        # Nessuna transazione/investimento -> ritorna array vuoto
+        return []
+
+    # Data di inizio analisi: oggi - range_days
+    calc_start = today - timedelta(days=range_days)
+    # Se earliest_date è più vecchia di calc_start, usiamo calc_start
+    # altrimenti partiamo da earliest_date
+    start_date = min(earliest_date, calc_start)
+
+    # 2) Carica l'initial_balance (assumiamo che accounts.user_id sia unique)
+    query_init_balance = """
+        SELECT COALESCE(SUM(initial_balance), 0)
+        FROM accounts
+        WHERE user_id = $1
+    """
+    initial_balance = float(await db.fetchval(query_init_balance, user_id) or 0)
+
+    # 3) Carica TUTTE le transazioni dell'utente
+    #    (così poi le accumuliamo per data).
+    query_transactions = """
+        SELECT transaction_date, type, amount
+        FROM transactions
+        WHERE user_id = $1
+          AND transaction_date <= $2
+        ORDER BY transaction_date
+    """
+    rows_trx = await db.fetch(query_transactions, user_id, today)
+    # Dict per accumulare entrate e uscite in ciascun giorno
+    daily_income = defaultdict(float)
+    daily_expense = defaultdict(float)
+
+    for r in rows_trx:
+        d = r["transaction_date"]
+        amt = float(r["amount"])
+        if r["type"] == "income":
+            daily_income[d] += amt
+        elif r["type"] == "expense":
+            daily_expense[d] += amt
+
+    # 4) Carica tutte le operazioni di investimento (buy/sell)
+    query_invest = """
+        SELECT date_of_operation, type_of_operation, asset_type, ticker, quantity
+        FROM investments
+        WHERE user_id = $1
+          AND date_of_operation <= $2
+        ORDER BY date_of_operation
+    """
+    rows_inv = await db.fetch(query_invest, user_id, today)
+
+    # Creiamo un elenco di tutti i ticker incontrati, per sapere quali prezzi storici scaricare
+    tickers_stock_etf = set()
+    tickers_crypto = set()
+    # E un dict day->list di operazioni per aggiornare le posizioni
+    daily_invest_ops = defaultdict(list)
+
+    for r in rows_inv:
+        d = r["date_of_operation"]
+        asset_type = r["asset_type"].lower()
+        tck = r["ticker"]
+        op_type = r["type_of_operation"].lower()
+        qty = float(r["quantity"] or 0)
+
+        # Salviamo l'operazione in daily_invest_ops[d]
+        daily_invest_ops[d].append({
+            "asset_type": asset_type,
+            "ticker": tck,
+            "op_type": op_type,
+            "qty": qty
+        })
+
+        # Raccogliamo i ticker
+        if asset_type in ["stock", "etf"]:
+            tickers_stock_etf.add(tck)
+        elif asset_type == "crypto":
+            tickers_crypto.add(tck)
+
+    # 5) Scarica i prezzi storici in blocco (un'unica volta)
+    #    a) yfinance per stock/etf
+    prices_yf = {}  # es. prices_yf[ticker][date] = prezzo
+    if tickers_stock_etf:
+        start_str = start_date.strftime("%Y-%m-%d")
+        end_str = (today + timedelta(days=1)).strftime("%Y-%m-%d")
+        for tck in tickers_stock_etf:
+            # Scarichiamo la storia (daily)
+            df = yf.Ticker(tck).history(start=start_str, end=end_str)
+            # df.index sono date + time, convertiamo in date pura
+            daily_dict = {}
+            for idx, row in df.iterrows():
+                # idx è un Timestamp con timezone
+                day_only = idx.date()
+                daily_dict[day_only] = float(row["Close"])
+            prices_yf[tck] = daily_dict
+
+    #    b) CoinGecko per crypto (usiamo get_coin_market_chart_range se vogliamo dati giornalieri)
+    cg = CoinGeckoAPI()
+    prices_cg = {}  # prices_cg[ticker][date] = prezzo
+    for tck in tickers_crypto:
+        # 1) Cerchiamo l'id della coin su coingecko
+        search = cg.search(query=tck)
+        if not search.get("coins"):
+            continue
+        coin_id = search["coins"][0]["id"]
+        # 2) Chiamata get_coin_market_chart_range per l'intervallo [start_date, today]
+        #    Richiede i timestamp in secondi
+        start_ts = int(start_date.strftime("%s"))
+        end_ts = int((today + timedelta(days=1)).strftime("%s"))
+        market_data = cg.get_coin_market_chart_range(
+            id=coin_id,
+            vs_currency="usd",
+            from_timestamp=start_ts,
+            to_timestamp=end_ts
+        )
+        # market_data["prices"] è una lista di [timestamp, price]
+        daily_dict = {}
+        for ts_price in market_data.get("prices", []):
+            ts = ts_price[0] / 1000.0  # coinGecko è in ms
+            p = float(ts_price[1])
+            dt = date.fromtimestamp(ts)
+            daily_dict[dt] = p
+        prices_cg[tck] = daily_dict
+
+    # 6) Calcolo cumulativo giorno per giorno
+    #    - per il "saldo liquido" (initial_balance + income - expense)
+    #    - per le posizioni in ciascun ticker
+    #    - poi networth = saldo + sum(posizioni * prezzo_giorno)
+    current_balance = 0.0
+    positions = defaultdict(float)  # ticker -> quantità posseduta
+
+    results = []
+    day_iter = start_date
+    # Se la prima transazione è successiva a start_date,
+    # networth=0 finché non raggiungiamo earliest_date
+    # Quindi iniziamo "current_balance" = 0, "positions"=0, finché day < earliest_date.
+
+    # Nel giorno earliest_date "aggiungiamo" initial_balance
+    # (equivale a dire che l'account parte da earliest_date)
+    # Se preferisci che parta da un'altra data (es. created_at dell'account) puoi adattare.
+
+    while day_iter <= today:
+        if day_iter < earliest_date:
+            # Tutto zero
+            networth = 0.0
+            invests_val = 0.0
+        else:
+            # Se siamo al primo giorno in cui day_iter == earliest_date,
+            # aggiungiamo l'initial_balance (una volta sola).
+            if day_iter == earliest_date:
+                current_balance += float(initial_balance)
+
+            # Aggiorna entrate/uscite di questo giorno
+            inc = daily_income.get(day_iter, 0.0)
+            exp = daily_expense.get(day_iter, 0.0)
+            current_balance += inc
+            current_balance -= exp
+
+            # Aggiorna posizioni in base alle operazioni di investimento in questo giorno
+            if day_iter in daily_invest_ops:
+                for op in daily_invest_ops[day_iter]:
+                    tck = op["ticker"]
+                    qty = op["qty"]
+                    if op["op_type"] == "buy":
+                        positions[tck] += qty
+                    elif op["op_type"] == "sell":
+                        positions[tck] -= qty
+                        if positions[tck] < 0:
+                            positions[tck] = 0
+
+            # Calcola valore investimenti
+            invests_val = 0.0
+            for tck, qty in positions.items():
+                if qty <= 0:
+                    continue
+                # Determina se stock/etf o crypto
+                # e cerca il prezzo di day_iter (se non c'è, usiamo l'ultimo disponibile <= day_iter)
+                price = 0.0
+                # yfinance
+                if tck in tickers_stock_etf:
+                    # Troviamo un prezzo disponibile: yfinance potrebbe non avere un close esatto di sab/dom
+                    # Strategia semplice: cerchiamo day_iter, se non esiste prendiamo il giorno precedente
+                    # Per semplificare, facciamo un backward loop (max 5-6 giorni)
+                    dtemp = day_iter
+                    for _ in range(7):
+                        if dtemp in prices_yf[tck]:
+                            price = prices_yf[tck][dtemp]
+                            break
+                        dtemp = dtemp - timedelta(days=1)
+                # coinGecko
+                elif tck in tickers_crypto:
+                    dtemp = day_iter
+                    for _ in range(7):
+                        if dtemp in prices_cg[tck]:
+                            price = prices_cg[tck][dtemp]
+                            break
+                        dtemp = dtemp - timedelta(days=1)
+
+                invests_val += qty * price
+
+            networth = current_balance + invests_val
+
+        results.append({
+            "date": day_iter.isoformat(),
+            "networth": round(networth, 2),
+            "investments": round(invests_val, 2),
+        })
+        day_iter += timedelta(days=1)
+
+    return results

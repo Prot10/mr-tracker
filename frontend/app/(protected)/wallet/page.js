@@ -11,9 +11,7 @@ const BACKEND_URL =
 export default function Homepage() {
   const router = useRouter();
   const [session, setSession] = useState(null);
-  const [netWorth, setNetWorth] = useState(null);
   const [transactions, setTransactions] = useState([]);
-  const [investments, setInvestments] = useState([]);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -22,35 +20,25 @@ export default function Homepage() {
         router.push("/login");
       } else {
         setSession(data.session);
-        fetchHomepageData(data.session.access_token);
+        fetchTransactionData(data.session.access_token);
       }
     };
 
     fetchSession();
   }, [router]);
 
-  const fetchHomepageData = async (accessToken) => {
+  const fetchTransactionData = async (accessToken) => {
     try {
       const headers = {
         "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,
       };
 
-      const netWorthRes = await fetch(`${BACKEND_URL}/networth`, { headers });
-      const netWorthData = await netWorthRes.json();
-      setNetWorth(netWorthData.net_worth);
-
       const transactionsRes = await fetch(`${BACKEND_URL}/transactions`, {
         headers,
       });
       const transactionsData = await transactionsRes.json();
       setTransactions(transactionsData.transactions);
-
-      const investmentsRes = await fetch(`${BACKEND_URL}/investments`, {
-        headers,
-      });
-      const investmentsData = await investmentsRes.json();
-      setInvestments(investmentsData.investments);
     } catch (error) {
       console.error("Errore nel recupero dei dati:", error);
     }

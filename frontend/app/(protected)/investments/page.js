@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import InvestmentsTable from "./Table";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
@@ -10,8 +11,6 @@ const BACKEND_URL =
 export default function Homepage() {
   const router = useRouter();
   const [session, setSession] = useState(null);
-  const [netWorth, setNetWorth] = useState(null);
-  const [transactions, setTransactions] = useState([]);
   const [investments, setInvestments] = useState([]);
 
   useEffect(() => {
@@ -21,29 +20,19 @@ export default function Homepage() {
         router.push("/login");
       } else {
         setSession(data.session);
-        fetchHomepageData(data.session.access_token);
+        fetchInvestmentData(data.session.access_token);
       }
     };
 
     fetchSession();
   }, [router]);
 
-  const fetchHomepageData = async (accessToken) => {
+  const fetchInvestmentData = async (accessToken) => {
     try {
       const headers = {
         "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,
       };
-
-      const netWorthRes = await fetch(`${BACKEND_URL}/networth`, { headers });
-      const netWorthData = await netWorthRes.json();
-      setNetWorth(netWorthData.net_worth);
-
-      const transactionsRes = await fetch(`${BACKEND_URL}/transactions`, {
-        headers,
-      });
-      const transactionsData = await transactionsRes.json();
-      setTransactions(transactionsData.transactions);
 
       const investmentsRes = await fetch(`${BACKEND_URL}/investments`, {
         headers,
@@ -64,41 +53,12 @@ export default function Homepage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white flex items-center justify-center">
-      {/* <div className="max-w-7xl mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-4">Homepage</h1>
-        <p className="text-center mb-6">
-          Benvenuto, {session.user.user_metadata?.name || session.user.email}
-        </p>
-
-        <div className="flex flex-col md:flex-row gap-4 justify-center mb-8">
-          <Link
-            href="/add-transaction"
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md transition"
-          >
-            Aggiungi Transazione
-          </Link>
-          <Link
-            href="/add-investment"
-            className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-md transition"
-          >
-            Aggiungi Investimento
-          </Link>
-        </div>
-        <div className="bg-gray-800 rounded-lg p-6 shadow-md mb-8">
-          <h2 className="text-2xl font-semibold mb-4">
-            Net Worth: {netWorth !== null ? netWorth : "Caricamento..."}
-          </h2>
-        </div>
-        <div className="mb-8">
-          <h3 className="text-xl font-semibold mb-4">Transazioni</h3>
-          <TransactionsTable data={transactions} />
-        </div>
-        <div>
-          <h3 className="text-xl font-semibold mb-4">Investimenti</h3>
+    <div className="flex flex-1 flex-col">
+      <div className="@container/main flex flex-1 flex-col gap-2">
+        <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
           <InvestmentsTable data={investments} />
         </div>
-      </div> */}
+      </div>
     </div>
   );
 }

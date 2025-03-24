@@ -297,7 +297,17 @@ export function AddTransaction({
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent className="bg-neutral-950">
-                {categories.map((cat) => (
+                {[
+                  ...new Map(
+                    categories
+                      .filter(
+                        (cat) =>
+                          cat.type === type &&
+                          cat.name.toLowerCase() !== "investments"
+                      )
+                      .map((cat) => [cat.name.toLowerCase(), cat])
+                  ).values(),
+                ].map((cat) => (
                   <SelectItem key={cat.id} value={String(cat.id)}>
                     <div className="flex items-center space-x-2">
                       {React.createElement(

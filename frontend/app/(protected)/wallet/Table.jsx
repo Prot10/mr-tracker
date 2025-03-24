@@ -1,5 +1,6 @@
 "use client";
 
+import { format } from "date-fns";
 import {
   ArrowUpDown,
   ChevronLeft,
@@ -9,6 +10,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "../../components/ui/button";
+import { Calendar } from "../../components/ui/calendar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,6 +51,11 @@ export default function TransactionsTable({ data }) {
   const [sortConfig, setSortConfig] = useState({ key: "", direction: "asc" });
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [dateRange, setDateRange] = useState({
+    from: dateFilter.start ? new Date(dateFilter.start) : undefined,
+    to: dateFilter.end ? new Date(dateFilter.end) : undefined,
+  });
+  const [activeField, setActiveField] = useState(null);
   const isMobile = useIsMobile();
 
   const refreshData = async () => {
@@ -427,32 +434,74 @@ export default function TransactionsTable({ data }) {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="bg-neutral-950 p-2">
                       <div className="flex flex-col gap-2">
-                        <input
-                          type="date"
-                          value={dateFilter.start}
-                          onChange={(e) =>
-                            setDateFilter({
-                              ...dateFilter,
-                              start: e.target.value,
-                            })
-                          }
-                          className="px-2 py-1 rounded-md bg-neutral-800 text-white"
-                        />
-                        <input
-                          type="date"
-                          value={dateFilter.end}
-                          onChange={(e) =>
-                            setDateFilter({
-                              ...dateFilter,
-                              end: e.target.value,
-                            })
-                          }
-                          className="px-2 py-1 rounded-md bg-neutral-800 text-white"
-                        />
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setActiveField("from")}
+                          >
+                            {dateRange.from
+                              ? format(dateRange.from, "LLL dd, y")
+                              : "From"}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setActiveField("to")}
+                          >
+                            {dateRange.to
+                              ? format(dateRange.to, "LLL dd, y")
+                              : "To"}
+                          </Button>
+                        </div>
+                        {activeField && (
+                          <div className="mt-2">
+                            <Calendar
+                              initialFocus
+                              mode="range"
+                              defaultMonth={
+                                dateRange[activeField] || new Date()
+                              }
+                              selected={dateRange}
+                              onSelect={(range) => {
+                                if (range) {
+                                  if (range.from && range.to) {
+                                    setDateRange(range);
+                                    setDateFilter({
+                                      start: format(range.from, "yyyy-MM-dd"),
+                                      end: format(range.to, "yyyy-MM-dd"),
+                                    });
+                                  } else if (range.from && !range.to) {
+                                    const newRange = {
+                                      ...dateRange,
+                                      [activeField]: range.from,
+                                    };
+                                    setDateRange(newRange);
+                                    setDateFilter({
+                                      start:
+                                        activeField === "from"
+                                          ? format(range.from, "yyyy-MM-dd")
+                                          : dateFilter.start,
+                                      end:
+                                        activeField === "to"
+                                          ? format(range.from, "yyyy-MM-dd")
+                                          : dateFilter.end,
+                                    });
+                                  }
+                                }
+                              }}
+                              numberOfMonths={2}
+                            />
+                          </div>
+                        )}
                         <Button
                           variant="ghost"
                           size="xs"
-                          onClick={() => setDateFilter({ start: "", end: "" })}
+                          onClick={() => {
+                            setDateRange({ from: undefined, to: undefined });
+                            setDateFilter({ start: "", end: "" });
+                            setActiveField(null);
+                          }}
                         >
                           Clear
                         </Button>

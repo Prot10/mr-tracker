@@ -96,6 +96,10 @@ export default function TransactionsTable({ data }) {
     fetchCategories();
   }, []);
 
+  useEffect(() => {
+    refreshData();
+  }, []);
+
   const filteredData = useMemo(() => {
     let filtered = transactions;
     if (globalFilter) {

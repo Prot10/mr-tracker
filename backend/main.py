@@ -963,20 +963,28 @@ async def finance_composition(
     db: asyncpg.Connection = Depends(get_db)
 ):
     """
-    Returns a JSON structure with:
-    total_net_worth, and an array of compositions:
-      - Available Money
-      - Stocks (real-time)
-      - ETF (real-time)
-      - Crypto (real-time)
+    Returns portfolio composition in Euros
     """
-    # 1. Get initial balance from accounts
+    # Get current USD to EUR exchange rate
+    def get_usd_to_eur():
+        try:
+            eur_usd = yf.Ticker("EURUSD=X").history(period="1d")
+            if not eur_usd.empty:
+                rate = 1 / eur_usd["Close"].iloc[-1]
+                return round(rate, 4)
+            return 0.85  # Fallback rate
+        except Exception:
+            return 0.85
+
+    usd_to_eur = get_usd_to_eur()
+
+    # 1. Get initial balance (assuming stored in EUR)
     initial_balance = float(await db.fetchval(
-        "SELECT COALESCE(SUM(initial_balance), 0) FROM accounts WHERE user_id = $1",
+        "SELECT COALESCE((SELECT initial_balance FROM accounts WHERE user_id = $1 LIMIT 1), 0)",
         user_id
     ))
 
-    # 2. Calculate available money (initial + income - expenses)
+    # 2. Calculate available money (EUR)
     total_income = float(await db.fetchval(
         "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = $1 AND type = 'income'",
         user_id
@@ -989,88 +997,78 @@ async def finance_composition(
     
     available_money = initial_balance + total_income - total_expenses
 
-    # 3. Get all investments and calculate current positions
+    # 3. Get investments and calculate positions
     investments = await db.fetch(
-        """
-        SELECT asset_type, ticker, type_of_operation, quantity 
-        FROM investments 
-        WHERE user_id = $1 AND date_of_operation <= CURRENT_DATE
-        """,
+        """SELECT asset_type, ticker, type_of_operation, quantity 
+           FROM investments WHERE user_id = $1""",
         user_id
     )
 
     positions = defaultdict(float)
     for r in investments:
         asset_type = r["asset_type"].lower()
-        ticker = r["ticker"]
+        ticker = r["ticker"].upper()
         op_type = r["type_of_operation"].lower()
         qty = float(r["quantity"])
         
         key = (asset_type, ticker)
-        if op_type == "buy":
-            positions[key] += qty
-        elif op_type == "sell":
-            positions[key] -= qty
+        positions[key] += qty if op_type == "buy" else -qty
 
-    # Cleanup positions (remove negatives and zeros)
-    for key in list(positions.keys()):
-        if positions[key] <= 0:
-            del positions[key]
+    # Cleanup positions
+    positions = {k: v for k, v in positions.items() if v > 0}
 
-    # 4. Calculate real-time values for each asset type
+    # 4. Calculate real-time values in EUR
     stocks_total = 0.0
     etf_total = 0.0
     crypto_total = 0.0
     cg = CoinGeckoAPI()
 
-    # Process stocks and ETFs
+    # Process Stocks/ETFs (USD to EUR conversion)
     for (asset_type, ticker), qty in positions.items():
         if asset_type in ["stock", "etf"]:
             try:
-                # Get latest price using yfinance
                 ticker_obj = yf.Ticker(ticker)
                 hist = ticker_obj.history(period="1d")
                 if not hist.empty:
-                    price = hist["Close"].iloc[-1]
-                else:
-                    price = 0.0
-                
-                value = qty * price
-                if asset_type == "stock":
-                    stocks_total += value
-                else:
-                    etf_total += value
+                    price_usd = hist["Close"].iloc[-1]
+                    price_eur = price_usd * usd_to_eur
+                    value = qty * price_eur
+                    
+                    if asset_type == "stock":
+                        stocks_total += value
+                    else:
+                        etf_total += value
             except Exception:
-                # Log error and continue
                 pass
 
-    # Process crypto
-    crypto_assets = {ticker: qty for (asset_type, ticker), qty in positions.items() if asset_type == "crypto"}
+    # Process Crypto (direct EUR prices)
+    crypto_assets = {ticker: qty for (asset_type, ticker), qty in positions.items() 
+                    if asset_type == "crypto"}
+    
     if crypto_assets:
-        # Find CoinGecko IDs for all crypto tickers
         crypto_ids = {}
-        for ticker in crypto_assets.keys():
+        for ticker in crypto_assets:
             try:
-                search_result = cg.search(query=ticker)
-                if search_result["coins"]:
-                    crypto_ids[ticker] = search_result["coins"][0]["id"]
+                coin_list = cg.get_coins_list()
+                coin = next((c for c in coin_list if c["symbol"].upper() == ticker), None)
+                if coin:
+                    crypto_ids[ticker] = coin["id"]
             except:
                 continue
-        
-        # Get prices in batch
+
         if crypto_ids:
             try:
                 prices = cg.get_price(
-                    ids=list(crypto_ids.values()), 
-                    vs_currencies="usd"
+                    ids=list(crypto_ids.values()),
+                    vs_currencies="eur"
                 )
                 for ticker, coin_id in crypto_ids.items():
-                    price = prices.get(coin_id, {}).get("usd", 0.0)
-                    crypto_total += crypto_assets[ticker] * price
+                    if coin_id in prices and "eur" in prices[coin_id]:
+                        crypto_total += crypto_assets[ticker] * prices[coin_id]["eur"]
             except:
                 pass
 
-    # 5. Calculate totals and format response
+    # 5. Calculate totals
     total_net_worth = available_money + stocks_total + etf_total + crypto_total
     
     composition = [

@@ -18,28 +18,9 @@ import {
 } from "../../components/ui/chart";
 import { supabase } from "../../lib/supabaseClient";
 
-const chartConfig = {
-  Liquidity: {
-    label: "Liquidity",
-    color: "hsl(var(--chart-1))",
-  },
-  Stocks: {
-    label: "Stocks",
-    color: "hsl(var(--chart-2))",
-  },
-  ETF: {
-    label: "ETF",
-    color: "hsl(var(--chart-3))",
-  },
-  Crypto: {
-    label: "Crypto",
-    color: "hsl(var(--chart-4))",
-  },
-};
-
-export function PortfolioPlot() {
-  const [compositionData, setCompositionData] = useState([]);
-  const [totalNetWorth, setTotalNetWorth] = useState(0);
+export function ExpensesChart() {
+  const [chartData, setChartData] = useState([]);
+  const [totalExpenses, setTotalExpenses] = useState(0);
   const BACKEND_URL =
     process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
@@ -54,38 +35,41 @@ export function PortfolioPlot() {
         }
 
         const headers = {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         };
 
-        const res = await fetch(`${BACKEND_URL}/finance-composition`, {
+        const res = await fetch(`${BACKEND_URL}/expenses-by-category`, {
           headers,
         });
         if (!res.ok) throw new Error("API call failed");
 
         const data = await res.json();
-        setTotalNetWorth(data.total_net_worth);
 
-        // Transform API response to chart data format and filter out categories with 0 value
-        const categoryMapping = {
-          "available money": "Liquidity",
-          stocks: "Stocks",
-          etf: "ETF",
-          crypto: "Crypto",
-        };
+        // Transform data and assign dynamic colors with dynamic category mapping
+        const uniqueCategories = Array.from(
+          new Set(data.map((item) => item.category.toLowerCase()))
+        );
+        const categoryMapping = {};
+        uniqueCategories.forEach((cat) => {
+          // Convert to Title Case
+          categoryMapping[cat] = cat
+            .split(" ")
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(" ");
+        });
 
-        const transformedData = data.composition
-          .map((item, index) => ({
-            category:
-              categoryMapping[item.category.toLowerCase()] || item.category,
-            value: item.value,
-            fill: `hsl(var(--chart-${index + 1}))`,
-          }))
-          .filter((item) => item.value !== 0);
+        const transformedData = data.map((item, index) => ({
+          category:
+            categoryMapping[item.category.toLowerCase()] || item.category,
+          value: item.amount,
+          fill: `hsl(var(--chart-${(index % 9) + 1}))`,
+        }));
 
-        setCompositionData(transformedData);
+        const total = data.reduce((sum, item) => sum + item.amount, 0);
+        setTotalExpenses(total);
+        setChartData(transformedData);
       } catch (error) {
-        console.error("Error fetching composition data:", error);
+        console.error("Error fetching expenses data:", error);
       }
     };
 
@@ -95,15 +79,24 @@ export function PortfolioPlot() {
   return (
     <Card className="flex flex-col border-neutral-600">
       <CardHeader className="items-center pb-0">
-        <CardTitle>Portfolio Composition</CardTitle>
+        <CardTitle>Expenses by Category</CardTitle>
         <CardDescription className="text-neutral-400">
-          Real-time asset distribution
+          Last 30 days spending breakdown
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 pb-0">
         <ChartContainer
-          config={chartConfig}
           className="mx-auto aspect-square max-h-[350px]"
+          config={chartData.reduce(
+            (acc, item) => ({
+              ...acc,
+              [item.category]: {
+                label: item.category,
+                color: item.fill,
+              },
+            }),
+            {}
+          )}
         >
           <PieChart>
             <ChartTooltip
@@ -111,7 +104,7 @@ export function PortfolioPlot() {
               content={<ChartTooltipContent hideLabel />}
             />
             <Pie
-              data={compositionData}
+              data={chartData}
               dataKey="value"
               nameKey="category"
               innerRadius={85}
@@ -133,8 +126,9 @@ export function PortfolioPlot() {
                           className="fill-foreground text-3xl font-bold"
                         >
                           €
-                          {totalNetWorth.toLocaleString(undefined, {
+                          {totalExpenses.toLocaleString(undefined, {
                             minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
                           })}
                         </tspan>
                         <tspan
@@ -142,7 +136,7 @@ export function PortfolioPlot() {
                           y={(viewBox.cy || 0) + 24}
                           className="fill-neutral-300"
                         >
-                          Total Net Worth
+                          Total Expenses
                         </tspan>
                       </text>
                     );

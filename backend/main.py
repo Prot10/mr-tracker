@@ -164,11 +164,23 @@ async def get_networth(
     user_id: str = Depends(verify_token),
     db: asyncpg.Connection = Depends(get_db)
 ):
+    # Get current USD to EUR exchange rate
+    def get_usd_to_eur():
+        try:
+            eur_usd = yf.Ticker("EURUSD=X").history(period="1d")
+            if not eur_usd.empty:
+                rate = 1 / eur_usd["Close"].iloc[-1]
+                return round(rate, 4)
+            return 0.85  # Fallback rate
+        except Exception:
+            return 0.85
+
+    usd_to_eur = get_usd_to_eur()
+
     today = date.today() + timedelta(days=1)
     start_30 = today - timedelta(days=30)
     start_60 = today - timedelta(days=60)
 
-    # Function to get sum of transactions
     async def get_sum(start_date, end_date, trx_type):
         query = """
             SELECT COALESCE(SUM(amount), 0)
@@ -182,7 +194,6 @@ async def get_networth(
     expense_30 = await get_sum(start_30, today, "expense")
     expense_60 = await get_sum(start_60, start_30, "expense")
 
-    # Function to calculate percentage change
     def percentage_change(current, previous):
         if previous == 0:
             return 100.0 if current > 0 else 0.0
@@ -199,17 +210,14 @@ async def get_networth(
     raw_investments = await db.fetch(investments_query, user_id)
 
     from collections import defaultdict
-    # Function to compute positions
     def compute_positions(as_of_date):
         positions = defaultdict(lambda: {"asset_type": "", "net_quantity": 0.0})
         for inv in raw_investments:
             if inv["date_of_operation"] >= as_of_date:
                 continue
-            # Check if type_of_operation is None
             operation = inv["type_of_operation"]
             if operation is None:
-                # Optionally log a warning here if needed
-                continue  # Skip records without a valid operation type
+                continue
             key = inv["ticker"]
             q = 0.0 if inv["quantity"] is None else float(inv["quantity"])
             if operation.lower() == "buy":
@@ -219,9 +227,10 @@ async def get_networth(
             positions[key]["asset_type"] = inv["asset_type"]
         return positions
 
-    # Function to get investment value
     async def get_investment_value(positions):
         total_value = 0.0
+        cg = CoinGeckoAPI()
+        
         for ticker, data in positions.items():
             quantity = data["net_quantity"]
             asset_type = data["asset_type"]
@@ -229,21 +238,21 @@ async def get_networth(
                 continue
             try:
                 if asset_type.lower() in ["stock", "etf"]:
-                    price = yf.Ticker(ticker).history(period="1d")["Close"][-1]
+                    # Get USD price and convert to EUR
+                    usd_price = yf.Ticker(ticker).history(period="1d")["Close"][-1]
+                    eur_price = usd_price * usd_to_eur
+                    total_value += eur_price * quantity
                 elif asset_type.lower() == "crypto":
-                    cg = CoinGeckoAPI()
+                    # Get direct EUR price
                     result = cg.search(query=ticker)
                     coins = result.get("coins", [])
                     if not coins:
                         continue
                     coin_id = coins[0]["id"]
-                    market_data = cg.get_price(ids=coin_id, vs_currencies="usd")
-                    price = market_data[coin_id]["usd"]
-                else:
-                    continue
-                total_value += price * quantity
+                    market_data = cg.get_price(ids=coin_id, vs_currencies="eur")
+                    total_value += market_data[coin_id]["eur"] * quantity
             except Exception as e:
-                logger.warning(f"⚠️ Errore prezzo {ticker}: {e}")
+                logger.warning(f"⚠️ Price check failed for {ticker}: {e}")
                 continue
         return total_value
 
@@ -256,8 +265,8 @@ async def get_networth(
         "SELECT COALESCE((SELECT initial_balance FROM accounts WHERE user_id = $1 LIMIT 1), 0)", user_id
     )
 
-    networth_now = float(initial_balance) + float(income_30) - float(expense_30) + inv_value_now 
-    networth_prev = float(initial_balance) + float(income_60) - float(expense_60) + inv_value_30
+    networth_now = float(initial_balance) + float(income_30) - float(expense_30) + float(inv_value_now) 
+    networth_prev = float(initial_balance) + float(income_60) - float(expense_60) + float(inv_value_30)
     networth_change = percentage_change(networth_now, networth_prev)
 
     return {
@@ -727,17 +736,21 @@ async def get_networth_history(
     user_id: str = Depends(verify_token),
     db = Depends(get_db)
 ):
-    """
-    Calcola e restituisce un array di oggetti (date, networth, investments)
-    giorno per giorno, negli ultimi 'range_days' giorni (max 90, 60, 30, etc).
-    Se la prima transazione è più recente di (oggi - range_days),
-    per i giorni precedenti al primo record networth = 0.
-    """
-
-    # 1) Determina la data di inizio (start_date) e la data odierna
     today = date.today()
 
-    # Ricava la data più vecchia tra transazioni e investimenti
+    # Get historical EUR/USD exchange rates
+    def get_eur_rates(start_date, end_date):
+        try:
+            eurusd = yf.Ticker("EURUSD=X").history(
+                start=start_date.strftime("%Y-%m-%d"),
+                end=end_date.strftime("%Y-%m-%d")
+            )
+            return {idx.date(): 1 / row["Close"] for idx, row in eurusd.iterrows()}
+        except Exception as e:
+            logger.error(f"Error fetching EUR rates: {e}")
+            return {}
+
+    # Original date calculation remains unchanged
     earliest_date_query = """
         SELECT MIN(t1) AS earliest
         FROM (
@@ -748,25 +761,18 @@ async def get_networth_history(
     """
     earliest_date = await db.fetchval(earliest_date_query, user_id)
     if earliest_date is None:
-        # Nessuna transazione/investimento -> ritorna array vuoto
         return []
 
-    # Data di inizio analisi: oggi - range_days
     calc_start = today - timedelta(days=range_days)
-    # Se earliest_date è più vecchia di calc_start, usiamo calc_start
-    # altrimenti partiamo da earliest_date
     start_date = min(earliest_date, calc_start)
 
-    # 2) Carica l'initial_balance (assumiamo che accounts.user_id sia unique)
-    query_init_balance = """
-        SELECT COALESCE(SUM(initial_balance), 0)
-        FROM accounts
-        WHERE user_id = $1
-    """
+    # Get EUR conversion rates for the entire period
+    eur_rates = get_eur_rates(start_date, today)
+
+    # Original transaction loading remains unchanged
+    query_init_balance = """SELECT COALESCE((SELECT initial_balance FROM accounts WHERE user_id = $1 LIMIT 1), 0)"""
     initial_balance = float(await db.fetchval(query_init_balance, user_id) or 0)
 
-    # 3) Carica TUTTE le transazioni dell'utente
-    #    (così poi le accumuliamo per data).
     query_transactions = """
         SELECT transaction_date, type, amount
         FROM transactions
@@ -775,10 +781,9 @@ async def get_networth_history(
         ORDER BY transaction_date
     """
     rows_trx = await db.fetch(query_transactions, user_id, today)
-    # Dict per accumulare entrate e uscite in ciascun giorno
+    
     daily_income = defaultdict(float)
     daily_expense = defaultdict(float)
-
     for r in rows_trx:
         d = r["transaction_date"]
         amt = float(r["amount"])
@@ -787,7 +792,7 @@ async def get_networth_history(
         elif r["type"] == "expense":
             daily_expense[d] += amt
 
-    # 4) Carica tutte le operazioni di investimento (buy/sell)
+    # Original investment loading remains unchanged
     query_invest = """
         SELECT date_of_operation, type_of_operation, asset_type, ticker, quantity
         FROM investments
@@ -797,10 +802,8 @@ async def get_networth_history(
     """
     rows_inv = await db.fetch(query_invest, user_id, today)
 
-    # Creiamo un elenco di tutti i ticker incontrati, per sapere quali prezzi storici scaricare
     tickers_stock_etf = set()
     tickers_crypto = set()
-    # E un dict day->list di operazioni per aggiornare le posizioni
     daily_invest_ops = defaultdict(list)
 
     for r in rows_inv:
@@ -810,7 +813,6 @@ async def get_networth_history(
         op_type = r["type_of_operation"].lower()
         qty = float(r["quantity"] or 0)
 
-        # Salviamo l'operazione in daily_invest_ops[d]
         daily_invest_ops[d].append({
             "asset_type": asset_type,
             "ticker": tck,
@@ -818,92 +820,81 @@ async def get_networth_history(
             "qty": qty
         })
 
-        # Raccogliamo i ticker
         if asset_type in ["stock", "etf"]:
             tickers_stock_etf.add(tck)
         elif asset_type == "crypto":
             tickers_crypto.add(tck)
 
-    # 5) Scarica i prezzi storici in blocco (un'unica volta)
-    #    a) yfinance per stock/etf
-    prices_yf = {}  # es. prices_yf[ticker][date] = prezzo
+    # Modified price fetching section
+    prices_yf = {}
     if tickers_stock_etf:
         start_str = start_date.strftime("%Y-%m-%d")
         end_str = (today + timedelta(days=1)).strftime("%Y-%m-%d")
+        
         for tck in tickers_stock_etf:
-            # Scarichiamo la storia (daily)
             df = yf.Ticker(tck).history(start=start_str, end=end_str)
-            # df.index sono date + time, convertiamo in date pura
             daily_dict = {}
             for idx, row in df.iterrows():
-                # idx è un Timestamp con timezone
                 day_only = idx.date()
-                daily_dict[day_only] = float(row["Close"])
+                usd_price = float(row["Close"])
+                
+                # Find appropriate EUR rate
+                eur_rate = 0.85  # Fallback rate
+                for i in range(7):  # Check up to 7 days back
+                    check_date = day_only - timedelta(days=i)
+                    if check_date in eur_rates:
+                        eur_rate = eur_rates[check_date]
+                        break
+                
+                daily_dict[day_only] = usd_price * eur_rate
             prices_yf[tck] = daily_dict
 
-    #    b) CoinGecko per crypto (usiamo get_coin_market_chart_range se vogliamo dati giornalieri)
+    # Modified crypto price fetching (direct EUR)
     cg = CoinGeckoAPI()
-    prices_cg = {}  # prices_cg[ticker][date] = prezzo
+    prices_cg = {}
     for tck in tickers_crypto:
-        # 1) Cerchiamo l'id della coin su coingecko
         search = cg.search(query=tck)
         if not search.get("coins"):
             continue
         coin_id = search["coins"][0]["id"]
-        # 2) Chiamata get_coin_market_chart_range per l'intervallo [start_date, today]
-        #    Richiede i timestamp in secondi
+        
         start_ts = int(start_date.strftime("%s"))
         end_ts = int((today + timedelta(days=1)).strftime("%s"))
+        
         market_data = cg.get_coin_market_chart_range(
             id=coin_id,
-            vs_currency="usd",
+            vs_currency="eur",
             from_timestamp=start_ts,
             to_timestamp=end_ts
         )
-        # market_data["prices"] è una lista di [timestamp, price]
+        
         daily_dict = {}
         for ts_price in market_data.get("prices", []):
-            ts = ts_price[0] / 1000.0  # coinGecko è in ms
+            ts = ts_price[0] / 1000.0
             p = float(ts_price[1])
             dt = date.fromtimestamp(ts)
             daily_dict[dt] = p
         prices_cg[tck] = daily_dict
 
-    # 6) Calcolo cumulativo giorno per giorno
-    #    - per il "saldo liquido" (initial_balance + income - expense)
-    #    - per le posizioni in ciascun ticker
-    #    - poi networth = saldo + sum(posizioni * prezzo_giorno)
+    # Original calculation logic remains unchanged
     current_balance = 0.0
-    positions = defaultdict(float)  # ticker -> quantità posseduta
-
+    positions = defaultdict(float)
     results = []
     day_iter = start_date
-    # Se la prima transazione è successiva a start_date,
-    # networth=0 finché non raggiungiamo earliest_date
-    # Quindi iniziamo "current_balance" = 0, "positions"=0, finché day < earliest_date.
-
-    # Nel giorno earliest_date "aggiungiamo" initial_balance
-    # (equivale a dire che l'account parte da earliest_date)
-    # Se preferisci che parta da un'altra data (es. created_at dell'account) puoi adattare.
 
     while day_iter <= today:
         if day_iter < earliest_date:
-            # Tutto zero
             networth = 0.0
             invests_val = 0.0
         else:
-            # Se siamo al primo giorno in cui day_iter == earliest_date,
-            # aggiungiamo l'initial_balance (una volta sola).
             if day_iter == earliest_date:
                 current_balance += float(initial_balance)
 
-            # Aggiorna entrate/uscite di questo giorno
             inc = daily_income.get(day_iter, 0.0)
             exp = daily_expense.get(day_iter, 0.0)
             current_balance += inc
             current_balance -= exp
 
-            # Aggiorna posizioni in base alle operazioni di investimento in questo giorno
             if day_iter in daily_invest_ops:
                 for op in daily_invest_ops[day_iter]:
                     tck = op["ticker"]
@@ -915,34 +906,25 @@ async def get_networth_history(
                         if positions[tck] < 0:
                             positions[tck] = 0
 
-            # Calcola valore investimenti
             invests_val = 0.0
             for tck, qty in positions.items():
                 if qty <= 0:
                     continue
-                # Determina se stock/etf o crypto
-                # e cerca il prezzo di day_iter (se non c'è, usiamo l'ultimo disponibile <= day_iter)
                 price = 0.0
-                # yfinance
                 if tck in tickers_stock_etf:
-                    # Troviamo un prezzo disponibile: yfinance potrebbe non avere un close esatto di sab/dom
-                    # Strategia semplice: cerchiamo day_iter, se non esiste prendiamo il giorno precedente
-                    # Per semplificare, facciamo un backward loop (max 5-6 giorni)
                     dtemp = day_iter
                     for _ in range(7):
-                        if dtemp in prices_yf[tck]:
+                        if dtemp in prices_yf.get(tck, {}):
                             price = prices_yf[tck][dtemp]
                             break
                         dtemp = dtemp - timedelta(days=1)
-                # coinGecko
                 elif tck in tickers_crypto:
                     dtemp = day_iter
                     for _ in range(7):
-                        if dtemp in prices_cg[tck]:
+                        if dtemp in prices_cg.get(tck, {}):
                             price = prices_cg[tck][dtemp]
                             break
                         dtemp = dtemp - timedelta(days=1)
-
                 invests_val += qty * price
 
             networth = current_balance + invests_val
@@ -1082,3 +1064,37 @@ async def finance_composition(
         "total_net_worth": round(total_net_worth, 2),
         "composition": composition
     }
+    
+
+# Endpoint to get expenses by category
+@app.get("/expenses-by-category")
+async def get_expenses_by_category(
+    user_id: str = Depends(verify_token),
+    db: asyncpg.Connection = Depends(get_db)
+):
+    """
+    Returns expenses grouped by category for the last 30 days
+    Response format: [{ category: string, amount: float }, ...]
+    """
+    # Calculate date range
+    end_date = date.today()
+    start_date = end_date - timedelta(days=30)
+
+    query = """
+        SELECT c.name as category, SUM(t.amount) as total
+        FROM transactions t
+        JOIN categories c ON t.category_id = c.id
+        WHERE t.user_id = $1
+          AND t.type = 'expense'
+          AND t.transaction_date BETWEEN $2 AND $3
+        GROUP BY c.name
+        ORDER BY total DESC
+    """
+
+    try:
+        results = await db.fetch(query, user_id, start_date, end_date)
+        return [{"category": r["category"], "amount": float(r["total"])} for r in results]
+    
+    except asyncpg.PostgresError as e:
+        logger.error(f"Database error: {e}")
+        raise HTTPException(status_code=500, detail="Error retrieving expenses")

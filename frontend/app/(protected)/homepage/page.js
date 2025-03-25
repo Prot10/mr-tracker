@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { HistoryChart } from "./HistoryChart";
 import { SectionCards } from "./SectionCards";
-import { SectionPlots } from "./SectionPlots";
+import { SectionCharts } from "./SectionCharts";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
@@ -89,7 +89,7 @@ export default function Homepage() {
             <HistoryChart />
           </div>
 
-          <SectionPlots />
+          <SectionCharts />
         </div>
       </div>
     </div>

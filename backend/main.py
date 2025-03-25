@@ -7,6 +7,7 @@ import asyncpg
 import yfinance as yf
 from auth import verify_token
 from database import get_db
+from dateutil.relativedelta import relativedelta
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pycoingecko import CoinGeckoAPI
@@ -939,6 +940,7 @@ async def get_networth_history(
     return results
 
 
+# Endpoint to get finance composition
 @app.get("/finance-composition")
 async def finance_composition(
     user_id: str = Depends(verify_token),
@@ -1098,3 +1100,51 @@ async def get_expenses_by_category(
     except asyncpg.PostgresError as e:
         logger.error(f"Database error: {e}")
         raise HTTPException(status_code=500, detail="Error retrieving expenses")
+    
+    
+# Endpoint to get income vs expenses for the last 6 months
+@app.get("/monthly-finances")
+async def get_monthly_finances(
+    user_id: str = Depends(verify_token),
+    db: asyncpg.Connection = Depends(get_db)
+):
+    today = date.today()
+    results = []
+
+    for i in range(5, -1, -1):
+        month_date = today - relativedelta(months=i)
+        first_day_of_month = month_date.replace(day=1)
+        
+        if i == 0:
+            last_day_of_month = today
+        else:
+            next_month = first_day_of_month + relativedelta(months=1)
+            last_day_of_month = next_month - timedelta(days=1)
+
+        query = """
+            SELECT 
+                SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) AS income,
+                SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) AS expenses
+            FROM transactions
+            WHERE user_id = $1
+                AND transaction_date >= $2
+                AND transaction_date <= $3
+        """
+        row = await db.fetchrow(query, user_id, first_day_of_month, last_day_of_month)
+
+        results.append({
+            "month": first_day_of_month.strftime("%B"),
+            "month_num": first_day_of_month.month,  # Added month number
+            "year": first_day_of_month.year,
+            "income": round(float(row["income"] or 0), 2),
+            "expenses": round(float(row["expenses"] or 0), 2)
+        })
+
+    # Sort using the month_num we just added
+    sorted_results = sorted(results, key=lambda x: (x["year"], x["month_num"]))
+    
+    return [{
+        "month": f"{r['month']} {str(r['year'])[2:]}",
+        "income": r["income"],
+        "expenses": r["expenses"]
+    } for r in sorted_results]

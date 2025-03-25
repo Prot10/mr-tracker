@@ -258,7 +258,7 @@ export default function TransactionsTable({ data }) {
         />
       </div>
 
-      <div className="rounded-md border border-neutral-400 overflow-hidden">
+      <div className="rounded-md border border-neutral-600 overflow-hidden">
         <Table>
           <TableHeader className="bg-neutral-800">
             <TableRow>
@@ -648,7 +648,7 @@ export default function TransactionsTable({ data }) {
           >
             <SelectTrigger
               id="rowsPerPage"
-              className="px-4 py-2 h-8 rounded-md text-white hover:bg-neutral-800 border-neutral-400"
+              className="px-4 py-2 h-8 rounded-md text-white hover:bg-neutral-800 border-neutral-600"
             >
               <SelectValue placeholder="Rows per page" />
             </SelectTrigger>
@@ -665,7 +665,7 @@ export default function TransactionsTable({ data }) {
             {currentPage} / {totalPages}
           </span>
           <Button
-            className="border-neutral-400 md:min-w-24 hover:bg-neutral-800 h-8"
+            className="border-neutral-600 md:min-w-24 hover:bg-neutral-800 h-8"
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage(currentPage - 1)}
@@ -681,7 +681,7 @@ export default function TransactionsTable({ data }) {
             )}
           </Button>
           <Button
-            className="border-neutral-400 md:min-w-24 hover:bg-neutral-800 h-8"
+            className="border-neutral-600 md:min-w-24 hover:bg-neutral-800 h-8"
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage(currentPage + 1)}

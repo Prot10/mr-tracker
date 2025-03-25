@@ -189,7 +189,7 @@ export function AppSidebar() {
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="flex justify-center">
         <SidebarMenuItem key="UserActions">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

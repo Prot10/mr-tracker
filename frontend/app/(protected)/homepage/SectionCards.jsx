@@ -136,7 +136,7 @@ export function SectionCards({ cardsData }) {
       {cardsData.map((card) => {
         const trendProps = getTrendProps(card.change, card.title);
         return (
-          <Card className="@container/card border-neutral-400" key={card.title}>
+          <Card className="@container/card border-neutral-600" key={card.title}>
             <CardHeader className="relative">
               <CardDescription className="text-xl">
                 {card.title}

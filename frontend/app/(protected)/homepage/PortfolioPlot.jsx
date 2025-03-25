@@ -11,25 +11,27 @@ import {
 } from "../../components/ui/card";
 import {
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
 } from "../../components/ui/chart";
 import { supabase } from "../../lib/supabaseClient";
 
 const chartConfig = {
-  available_money: {
+  "Available Money": {
     label: "Available Money",
     color: "hsl(var(--chart-1))",
   },
-  stocks: {
+  Stocks: {
     label: "Stocks",
     color: "hsl(var(--chart-2))",
   },
-  etf: {
+  ETF: {
     label: "ETF",
     color: "hsl(var(--chart-3))",
   },
-  crypto: {
+  Crypto: {
     label: "Crypto",
     color: "hsl(var(--chart-4))",
   },
@@ -65,8 +67,16 @@ export function PortfolioPlot() {
         setTotalNetWorth(data.total_net_worth);
 
         // Transform API response to chart data format
+        const categoryMapping = {
+          "available money": "Available Money",
+          stocks: "Stocks",
+          etf: "ETF",
+          crypto: "Crypto",
+        };
+
         const transformedData = data.composition.map((item, index) => ({
-          category: item.category,
+          category:
+            categoryMapping[item.category.toLowerCase()] || item.category,
           value: item.value,
           fill: `hsl(var(--chart-${index + 1}))`,
         }));
@@ -136,6 +146,10 @@ export function PortfolioPlot() {
                 }}
               />
             </Pie>
+            <ChartLegend
+              content={<ChartLegendContent nameKey="category" />}
+              wrapperStyle={{ overflow: "auto" }}
+            />
           </PieChart>
         </ChartContainer>
       </CardContent>

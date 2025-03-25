@@ -2,6 +2,7 @@
 
 import {
   ChartCandlestick,
+  ChevronsUpDown,
   Home,
   LogOut,
   Trash2,
@@ -190,70 +191,45 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="flex justify-center">
-        <SidebarMenuItem key="UserActions">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <a href="#" className="flex items-center gap-2">
-                <User className="text-white" />
-                <span className="text-white">
-                  {user?.user_metadata?.name || user?.email || "Guest"}
-                </span>
-              </a>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-64 bg-neutral-800 text-white">
-              <DropdownMenuItem asChild>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className="flex items-center gap-2 w-full justify-start text-white"
-                    >
-                      <LogOut />
-                      <span>Logout</span>
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent className="bg-neutral-900 text-white">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to logout? You will be redirected
-                        to the initial page.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel className="bg-neutral-950 hover:bg-neutral-800">
-                        Cancel
-                      </AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleLogout}
-                        className="bg-indigo-700 hover:bg-indigo-600"
-                      >
-                        Logout
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </DropdownMenuItem>
-              <div className="grid flex-1 text-right text-sm leading-tight border-t border-b border-neutral-700">
+        <SidebarMenu>
+          <SidebarMenuItem key="UserActions">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton
+                  size="lg"
+                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                >
+                  <User className="text-white" />
+
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-semibold">
+                      {user?.user_metadata?.name || "Guest"}
+                    </span>
+                    <span className="truncate text-xs">
+                      {user?.email || "Guest"}
+                    </span>
+                  </div>
+                  <ChevronsUpDown className="ml-auto size-4" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-64 bg-neutral-800 text-white">
                 <DropdownMenuItem asChild>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button
                         variant="ghost"
-                        className="flex items-center gap-2 w-full justify-start text-neutral-300"
+                        className="flex items-center gap-2 w-full justify-start text-white"
                       >
-                        <Trash2 />
-                        <span>Delete all transactions</span>
+                        <LogOut />
+                        <span>Logout</span>
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent className="bg-neutral-900 text-white">
                       <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          Delete Transactions Data
-                        </AlertDialogTitle>
+                        <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
                         <AlertDialogDescription>
-                          This will permanently delete all your transactions
-                          data. Are you sure?
+                          Are you sure you want to logout? You will be
+                          redirected to the initial page.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -261,34 +237,139 @@ export function AppSidebar() {
                           Cancel
                         </AlertDialogCancel>
                         <AlertDialogAction
-                          onClick={handleDeleteTransactions}
-                          className="bg-red-600 hover:bg-red-500"
+                          onClick={handleLogout}
+                          className="bg-indigo-700 hover:bg-indigo-600"
                         >
-                          Delete
+                          Logout
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
                 </DropdownMenuItem>
+                <div className="grid flex-1 text-right text-sm leading-tight border-t border-b border-neutral-700">
+                  <DropdownMenuItem asChild>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="flex items-center gap-2 w-full justify-start text-neutral-300"
+                        >
+                          <Trash2 />
+                          <span>Delete all transactions</span>
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="bg-neutral-900 text-white">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            Delete Transactions Data
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete all your transactions
+                            data. Are you sure?
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel className="bg-neutral-950 hover:bg-neutral-800">
+                            Cancel
+                          </AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleDeleteTransactions}
+                            className="bg-red-600 hover:bg-red-500"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="flex items-center gap-2 w-full justify-start text-neutral-300"
+                        >
+                          <Trash2 />
+                          <span>Delete all investments</span>
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="bg-neutral-900 text-white">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            Delete Investments Data
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete all your investments
+                            data. Are you sure?
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel className="bg-neutral-950 hover:bg-neutral-800">
+                            Cancel
+                          </AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleDeleteInvestments}
+                            className="bg-red-600 hover:bg-red-500"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="flex items-center gap-2 w-full justify-start text-neutral-300"
+                        >
+                          <Trash2 />
+                          <span>Delete all data</span>
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="bg-neutral-900 text-white">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            Delete Account Data
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete your account data. Are
+                            you sure?
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel className="bg-neutral-950 hover:bg-neutral-800">
+                            Cancel
+                          </AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleDeleteAccountData}
+                            className="bg-red-600 hover:bg-red-500"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </DropdownMenuItem>
+                </div>
                 <DropdownMenuItem asChild>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button
                         variant="ghost"
-                        className="flex items-center gap-2 w-full justify-start text-neutral-300"
+                        className="flex items-center gap-2 w-full justify-start text-red-500"
                       >
-                        <Trash2 />
-                        <span>Delete all investments</span>
+                        <UserX />
+                        <span>Delete Account</span>
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent className="bg-neutral-900 text-white">
                       <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          Delete Investments Data
-                        </AlertDialogTitle>
+                        <AlertDialogTitle>Delete Account</AlertDialogTitle>
                         <AlertDialogDescription>
-                          This will permanently delete all your investments
-                          data. Are you sure?
+                          This will permanently delete your account and all
+                          associated data. Are you absolutely sure?
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -296,8 +377,8 @@ export function AppSidebar() {
                           Cancel
                         </AlertDialogCancel>
                         <AlertDialogAction
-                          onClick={handleDeleteInvestments}
-                          className="bg-red-600 hover:bg-red-500"
+                          onClick={handleDeleteAccount}
+                          className="bg-red-700 hover:bg-red-600"
                         >
                           Delete
                         </AlertDialogAction>
@@ -305,76 +386,10 @@ export function AppSidebar() {
                     </AlertDialogContent>
                   </AlertDialog>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        className="flex items-center gap-2 w-full justify-start text-neutral-300"
-                      >
-                        <Trash2 />
-                        <span>Delete all data</span>
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent className="bg-neutral-900 text-white">
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Account Data</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will permanently delete your account data. Are
-                          you sure?
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel className="bg-neutral-950 hover:bg-neutral-800">
-                          Cancel
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={handleDeleteAccountData}
-                          className="bg-red-600 hover:bg-red-500"
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </DropdownMenuItem>
-              </div>
-              <DropdownMenuItem asChild>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className="flex items-center gap-2 w-full justify-start text-red-500"
-                    >
-                      <UserX />
-                      <span>Delete Account</span>
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent className="bg-neutral-900 text-white">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Account</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will permanently delete your account and all
-                        associated data. Are you absolutely sure?
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel className="bg-neutral-950 hover:bg-neutral-800">
-                        Cancel
-                      </AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleDeleteAccount}
-                        className="bg-red-700 hover:bg-red-600"
-                      >
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </SidebarMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   );

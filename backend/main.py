@@ -720,6 +720,7 @@ async def delete_account(
 ### API Endpoints - PLOTS ###
 #############################
 
+# Endpoint to get net worth history
 @app.get("/networth-history")
 async def get_networth_history(
     range_days: int = 90,
@@ -954,3 +955,132 @@ async def get_networth_history(
         day_iter += timedelta(days=1)
 
     return results
+
+
+@app.get("/finance-composition")
+async def finance_composition(
+    user_id: str = Depends(verify_token),
+    db: asyncpg.Connection = Depends(get_db)
+):
+    """
+    Returns a JSON structure with:
+    total_net_worth, and an array of compositions:
+      - Available Money
+      - Stocks (real-time)
+      - ETF (real-time)
+      - Crypto (real-time)
+    """
+    # 1. Get initial balance from accounts
+    initial_balance = float(await db.fetchval(
+        "SELECT COALESCE(SUM(initial_balance), 0) FROM accounts WHERE user_id = $1",
+        user_id
+    ))
+
+    # 2. Calculate available money (initial + income - expenses)
+    total_income = float(await db.fetchval(
+        "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = $1 AND type = 'income'",
+        user_id
+    ))
+    
+    total_expenses = float(await db.fetchval(
+        "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = $1 AND type = 'expense'",
+        user_id
+    ))
+    
+    available_money = initial_balance + total_income - total_expenses
+
+    # 3. Get all investments and calculate current positions
+    investments = await db.fetch(
+        """
+        SELECT asset_type, ticker, type_of_operation, quantity 
+        FROM investments 
+        WHERE user_id = $1 AND date_of_operation <= CURRENT_DATE
+        """,
+        user_id
+    )
+
+    positions = defaultdict(float)
+    for r in investments:
+        asset_type = r["asset_type"].lower()
+        ticker = r["ticker"]
+        op_type = r["type_of_operation"].lower()
+        qty = float(r["quantity"])
+        
+        key = (asset_type, ticker)
+        if op_type == "buy":
+            positions[key] += qty
+        elif op_type == "sell":
+            positions[key] -= qty
+
+    # Cleanup positions (remove negatives and zeros)
+    for key in list(positions.keys()):
+        if positions[key] <= 0:
+            del positions[key]
+
+    # 4. Calculate real-time values for each asset type
+    stocks_total = 0.0
+    etf_total = 0.0
+    crypto_total = 0.0
+    cg = CoinGeckoAPI()
+
+    # Process stocks and ETFs
+    for (asset_type, ticker), qty in positions.items():
+        if asset_type in ["stock", "etf"]:
+            try:
+                # Get latest price using yfinance
+                ticker_obj = yf.Ticker(ticker)
+                hist = ticker_obj.history(period="1d")
+                if not hist.empty:
+                    price = hist["Close"].iloc[-1]
+                else:
+                    price = 0.0
+                
+                value = qty * price
+                if asset_type == "stock":
+                    stocks_total += value
+                else:
+                    etf_total += value
+            except Exception:
+                # Log error and continue
+                pass
+
+    # Process crypto
+    crypto_assets = {ticker: qty for (asset_type, ticker), qty in positions.items() if asset_type == "crypto"}
+    if crypto_assets:
+        # Find CoinGecko IDs for all crypto tickers
+        crypto_ids = {}
+        for ticker in crypto_assets.keys():
+            try:
+                search_result = cg.search(query=ticker)
+                if search_result["coins"]:
+                    crypto_ids[ticker] = search_result["coins"][0]["id"]
+            except:
+                continue
+        
+        # Get prices in batch
+        if crypto_ids:
+            try:
+                prices = cg.get_price(
+                    ids=list(crypto_ids.values()), 
+                    vs_currencies="usd"
+                )
+                for ticker, coin_id in crypto_ids.items():
+                    price = prices.get(coin_id, {}).get("usd", 0.0)
+                    crypto_total += crypto_assets[ticker] * price
+            except:
+                pass
+
+    # 5. Calculate totals and format response
+    total_net_worth = available_money + stocks_total + etf_total + crypto_total
+    
+    composition = [
+        {"category": "Available Money", "value": round(available_money, 2)},
+        {"category": "Stocks", "value": round(stocks_total, 2)},
+        {"category": "ETF", "value": round(etf_total, 2)},
+        {"category": "Crypto", "value": round(crypto_total, 2)},
+    ]
+
+    return {
+        "total_net_worth": round(total_net_worth, 2),
+        "composition": composition
+    }

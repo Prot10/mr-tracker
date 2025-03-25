@@ -80,7 +80,9 @@ export function ExpensesPlot() {
     <Card className="flex flex-col border-neutral-600">
       <CardHeader className="items-center pb-0">
         <CardTitle>Expenses by Category</CardTitle>
-        <CardDescription>Last 30 days spending breakdown</CardDescription>
+        <CardDescription className="text-neutral-400">
+          Last 30 days spending breakdown
+        </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 pb-0">
         <ChartContainer
@@ -132,7 +134,7 @@ export function ExpensesPlot() {
                         <tspan
                           x={viewBox.cx}
                           y={(viewBox.cy || 0) + 24}
-                          className="fill-foreground"
+                          className="fill-neutral-300"
                         >
                           Total Expenses
                         </tspan>

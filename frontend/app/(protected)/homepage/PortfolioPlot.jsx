@@ -19,8 +19,8 @@ import {
 import { supabase } from "../../lib/supabaseClient";
 
 const chartConfig = {
-  "Available Money": {
-    label: "Available Money",
+  Liquidity: {
+    label: "Liquidity",
     color: "hsl(var(--chart-1))",
   },
   Stocks: {
@@ -66,20 +66,22 @@ export function PortfolioPlot() {
         const data = await res.json();
         setTotalNetWorth(data.total_net_worth);
 
-        // Transform API response to chart data format
+        // Transform API response to chart data format and filter out categories with 0 value
         const categoryMapping = {
-          "available money": "Available Money",
+          "available money": "Liquidity",
           stocks: "Stocks",
           etf: "ETF",
           crypto: "Crypto",
         };
 
-        const transformedData = data.composition.map((item, index) => ({
-          category:
-            categoryMapping[item.category.toLowerCase()] || item.category,
-          value: item.value,
-          fill: `hsl(var(--chart-${index + 1}))`,
-        }));
+        const transformedData = data.composition
+          .map((item, index) => ({
+            category:
+              categoryMapping[item.category.toLowerCase()] || item.category,
+            value: item.value,
+            fill: `hsl(var(--chart-${index + 1}))`,
+          }))
+          .filter((item) => item.value !== 0);
 
         setCompositionData(transformedData);
       } catch (error) {
@@ -94,7 +96,9 @@ export function PortfolioPlot() {
     <Card className="flex flex-col border-neutral-600">
       <CardHeader className="items-center pb-0">
         <CardTitle>Portfolio Composition</CardTitle>
-        <CardDescription>Real-time asset distribution</CardDescription>
+        <CardDescription className="text-neutral-400">
+          Real-time asset distribution
+        </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 pb-0">
         <ChartContainer
@@ -136,7 +140,7 @@ export function PortfolioPlot() {
                         <tspan
                           x={viewBox.cx}
                           y={(viewBox.cy || 0) + 24}
-                          className="fill-foreground"
+                          className="fill-neutral-300"
                         >
                           Total Net Worth
                         </tspan>

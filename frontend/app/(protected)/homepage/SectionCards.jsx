@@ -154,11 +154,13 @@ export function SectionCards({ cardsData }) {
                 </Badge>
               </div>
             </CardHeader>
-            <CardFooter className="flex-col items-start gap-1 text-sm text-neutral-200">
-              <div className="line-clamp-1 flex gap-2 font-medium">
+            <CardFooter className="flex-col items-start gap-1 text-sm">
+              <div className="line-clamp-1 flex gap-2 font-medium text-neutral-200">
                 {trendProps.footerText}
               </div>
-              <div className="text-muted-foreground">{card.description}</div>
+              <div className="text-muted-foreground text-neutral-400">
+                {card.description}
+              </div>
             </CardFooter>
           </Card>
         );

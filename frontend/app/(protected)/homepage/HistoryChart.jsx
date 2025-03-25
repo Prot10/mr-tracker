@@ -93,13 +93,13 @@ export function HistoryChart() {
       <CardHeader className="flex items-center gap-2 space-y-0 border-neutral-600 sm:flex-row">
         <div className="grid flex-1 gap-1 text-center sm:text-left">
           <CardTitle>Net Worth & Investments</CardTitle>
-          <CardDescription>
+          <CardDescription className="text-neutral-400">
             Showing data for the last {timeRange} days
           </CardDescription>
         </div>
         <Select value={timeRange} onValueChange={setTimeRange}>
           <SelectTrigger
-            className="w-[160px] rounded-lg sm:ml-auto border-neutral-600"
+            className="w-[160px] rounded-lg sm:ml-auto border-neutral-600 text-neutral-300"
             aria-label="Select a value"
           >
             <SelectValue />

@@ -13,29 +13,40 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const BACKEND_URL =
+    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setLoading(true);
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+
     if (error) {
       setError(error.message);
+      setLoading(false);
     } else {
-      const userId = data.session.user.id;
-      const { data: accountData, error: accountError } = await supabase
-        .from("accounts")
-        .select("*")
-        .eq("user_id", userId)
-        .single();
-      if (accountData) {
-        router.push("/homepage");
+      const token = data.session.access_token;
+      const response = await fetch(`${BACKEND_URL}/categories`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const categories = await response.json();
+        if (categories && categories.length > 0) {
+          router.push("/homepage");
+        } else {
+          alert(
+            "It looks like you haven't completed onboarding. Please complete onboarding to continue."
+          );
+          router.push("/onboarding");
+        }
       } else {
-        alert(
-          "It looks like you haven't completed onboarding. Please complete the onboarding to continue."
-        );
-        router.push("/onboarding");
+        setError("Failed to fetch categories. Please try again later.");
+        setLoading(false);
       }
     }
   };
@@ -57,6 +68,29 @@ export default function Login() {
         <h1 className="text-3xl font-bold text-white mb-6 text-center">
           Login
         </h1>
+        {loading && (
+          <div className="flex items-center justify-center space-x-2 mb-4">
+            <svg
+              className="animate-spin h-6 w-6 text-white"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v8H4z"
+              ></path>
+            </svg>
+            <span className="text-white">Please wait...</span>
+          </div>
+        )}
         {error && <p className="text-red-500 mb-4 text-center">{error}</p>}
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="mb-4">

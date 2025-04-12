@@ -1,7 +1,23 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect } from "react";
 
 export default function HomePage() {
+  useEffect(() => {
+    const BACKEND_URL =
+      process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+    fetch(`${BACKEND_URL}/`)
+      .then((response) => response.json())
+      .then((data) => {
+        console.log("Backend warmed up:", data);
+      })
+      .catch((err) => {
+        console.error("Error warming up backend:", err);
+      });
+  }, []);
+
   return (
     <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-4 mx-8">
       <div className="max-w-2xl text-center">

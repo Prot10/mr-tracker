@@ -70,23 +70,74 @@ export default function Login() {
         </h1>
         {loading && (
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <svg
-              className="animate-spin h-6 w-6 text-white"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8v8H4z"
-              ></path>
+            <svg width="60" height="60" viewBox="0 0 50 50">
+              <g fill="none" stroke="#60A5FA">
+                <g transform="rotate(0 25 25)">
+                  <ellipse
+                    cx="25"
+                    cy="25"
+                    rx="15"
+                    ry="8"
+                    stroke-width="2"
+                    opacity="0.3"
+                  >
+                    <animateTransform
+                      attributeName="transform"
+                      type="rotate"
+                      from="0 25 25"
+                      to="360 25 25"
+                      dur="3s"
+                      repeatCount="indefinite"
+                    ></animateTransform>
+                  </ellipse>
+                </g>
+                <g transform="rotate(120 25 25)">
+                  <ellipse
+                    cx="25"
+                    cy="25"
+                    rx="15"
+                    ry="8"
+                    stroke-width="2"
+                    opacity="0.5"
+                  >
+                    <animateTransform
+                      attributeName="transform"
+                      type="rotate"
+                      from="0 25 25"
+                      to="360 25 25"
+                      dur="4s"
+                      repeatCount="indefinite"
+                    ></animateTransform>
+                  </ellipse>
+                </g>
+                <g transform="rotate(240 25 25)">
+                  <ellipse
+                    cx="25"
+                    cy="25"
+                    rx="15"
+                    ry="8"
+                    stroke-width="2"
+                    opacity="0.7"
+                  >
+                    <animateTransform
+                      attributeName="transform"
+                      type="rotate"
+                      from="0 25 25"
+                      to="360 25 25"
+                      dur="5s"
+                      repeatCount="indefinite"
+                    ></animateTransform>
+                  </ellipse>
+                </g>
+                <circle cx="25" cy="25" r="3" fill="#60A5FA">
+                  <animate
+                    attributeName="r"
+                    values="3;4;3"
+                    dur="1s"
+                    repeatCount="indefinite"
+                  ></animate>
+                </circle>
+              </g>
             </svg>
             <span className="text-white">Please wait...</span>
           </div>

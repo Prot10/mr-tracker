@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Calendar } from "../../components/ui/calendar";
 import {
   DropdownMenu,
@@ -163,16 +164,63 @@ export function AddTransaction({
   const handleSubmit = async (e) => {
     e.preventDefault();
     const { data } = await supabase.auth.getSession();
+
     if (!data?.session) {
       router.push("/login");
       return;
     }
-    const token = data.session.access_token;
 
+    // Client-side validation
+    if (!amount || isNaN(amount)) {
+      toast.error("Missing Amount", {
+        description: "Please enter a valid transaction amount",
+      });
+      return;
+    }
+
+    if (parseFloat(amount) <= 0) {
+      toast.error("Invalid Amount", {
+        description: "Amount must be greater than 0",
+      });
+      return;
+    }
+
+    if (!date) {
+      toast.error("Missing Date", {
+        description: "Please select a transaction date",
+      });
+      return;
+    }
+
+    // Category validation
+    if (!selectedCategoryId) {
+      if (!customCategoryName || !customCategoryIcon) {
+        toast.error("Category Required", {
+          description: "Please select an existing category or create a new one",
+        });
+        return;
+      }
+
+      if (!customCategoryName) {
+        toast.error("New Category Name Required", {
+          description: "Please enter a name for your new category",
+        });
+        return;
+      }
+
+      if (!customCategoryIcon) {
+        toast.error("Category Icon Required", {
+          description: "Please select an icon for your new category",
+        });
+        return;
+      }
+    }
+
+    const token = data.session.access_token;
     let categoryIdToUse = selectedCategoryId;
 
     try {
-      // If user typed a new category
+      // Create new category if needed
       if (customCategoryName && customCategoryIcon) {
         const categoryResponse = await fetch(`${BACKEND_URL}/categories`, {
           method: "POST",
@@ -186,19 +234,33 @@ export function AddTransaction({
             icon: customCategoryIcon,
           }),
         });
+
         if (!categoryResponse.ok) {
-          throw new Error("Error creating the category.");
+          throw new Error("Failed to create new category. Please try again.");
         }
+
         const newCategory = await categoryResponse.json();
         categoryIdToUse = newCategory.id;
+        toast("New Category Created", {
+          description: `${customCategoryName} with ${customCategoryIcon} icon`,
+        });
       }
 
+      // Validate final category selection
       if (!categoryIdToUse) {
-        throw new Error("Select an existing category or create a new one.");
+        throw new Error("Category selection validation failed");
       }
 
-      // If updating
-      if (existingTransaction && existingTransaction.id) {
+      const transactionData = {
+        type,
+        amount: parseFloat(amount),
+        description,
+        category_id: categoryIdToUse,
+        transaction_date: format(date, "yyyy-MM-dd"),
+      };
+
+      // Update or Create transaction
+      if (existingTransaction?.id) {
         const updateResponse = await fetch(
           `${BACKEND_URL}/transactions/${existingTransaction.id}`,
           {
@@ -207,51 +269,50 @@ export function AddTransaction({
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({
-              type,
-              amount: parseFloat(amount),
-              description,
-              category_id: categoryIdToUse,
-              transaction_date: format(date, "yyyy-MM-dd"),
-            }),
+            body: JSON.stringify(transactionData),
           }
         );
 
         if (!updateResponse.ok) {
-          throw new Error("Error updating transaction");
+          throw new Error(
+            "We couldn't update the transaction. Please check the details."
+          );
         }
-        alert("✅ Transaction updated successfully!");
+
+        toast.success("Transaction Updated", {
+          description: `Updated ${type} of €${amount} for ${description}`,
+        });
       } else {
-        // Else creating
         const transactionResponse = await fetch(`${BACKEND_URL}/transactions`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            type,
-            amount: parseFloat(amount),
-            description,
-            category_id: categoryIdToUse,
-            transaction_date: format(date, "yyyy-MM-dd"),
-          }),
+          body: JSON.stringify(transactionData),
         });
 
         if (!transactionResponse.ok) {
-          throw new Error("Error adding transaction");
+          throw new Error("Failed to create transaction. Please try again.");
         }
-        alert("✅ Transaction added successfully!");
+
+        toast.success("Transaction Created", {
+          description: `New ${type} of €${amount} added on ${format(
+            date,
+            "MMM dd, yyyy"
+          )}`,
+        });
       }
 
+      // Close dialog and refresh
       onOpenChange(false);
-      if (onTransactionSaved) {
-        onTransactionSaved();
-      }
+      onTransactionSaved?.();
       router.push("/wallet");
     } catch (err) {
-      alert(`❌ Error: ${err.message}`);
-      setError(err.message);
+      toast.error("Transaction Failed", {
+        description:
+          err.message || "An unexpected error occurred. Please try again.",
+      });
     }
   };
 

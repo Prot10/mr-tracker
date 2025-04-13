@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Label } from "../components/ui/label";
 import { Input } from "../components/ui/my-input";
 import { supabase } from "../lib/supabaseClient";
@@ -12,7 +13,6 @@ export default function Login() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const BACKEND_URL =
     process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
@@ -20,34 +20,49 @@ export default function Login() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
-      setError(error.message);
+      toast.error("Login Failed", {
+        description: error.message || "Invalid email or password",
+      });
       setLoading(false);
-    } else {
+      return;
+    }
+
+    try {
       const token = data.session.access_token;
       const response = await fetch(`${BACKEND_URL}/categories`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (response.ok) {
-        const categories = await response.json();
-        if (categories && categories.length > 0) {
-          router.push("/homepage");
-        } else {
-          alert(
-            "It looks like you haven't completed onboarding. Please complete onboarding to continue."
-          );
-          router.push("/onboarding");
-        }
-      } else {
-        setError("Failed to fetch categories. Please try again later.");
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error("Failed to fetch user data");
       }
+
+      const categories = await response.json();
+
+      if (categories?.length > 0) {
+        router.push("/homepage");
+      } else {
+        toast.warning("Onboarding Required", {
+          description: "Please complete onboarding to continue",
+          action: {
+            label: "Go to Onboarding",
+            onClick: () => router.push("/onboarding"),
+          },
+        });
+        router.push("/onboarding");
+      }
+    } catch (err) {
+      toast.error("Login Error", {
+        description: err.message || "An error occurred during login",
+      });
+      setLoading(false);
     }
   };
 
@@ -78,7 +93,7 @@ export default function Login() {
                     cy="25"
                     rx="15"
                     ry="8"
-                    stroke-width="2"
+                    strokeWidth="2"
                     opacity="0.3"
                   >
                     <animateTransform
@@ -97,7 +112,7 @@ export default function Login() {
                     cy="25"
                     rx="15"
                     ry="8"
-                    stroke-width="2"
+                    strokeWidth="2"
                     opacity="0.5"
                   >
                     <animateTransform
@@ -116,7 +131,7 @@ export default function Login() {
                     cy="25"
                     rx="15"
                     ry="8"
-                    stroke-width="2"
+                    strokeWidth="2"
                     opacity="0.7"
                   >
                     <animateTransform
@@ -142,7 +157,6 @@ export default function Login() {
             <span className="text-white">Please wait...</span>
           </div>
         )}
-        {error && <p className="text-red-500 mb-4 text-center">{error}</p>}
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="mb-4">
             <Label htmlFor="email" className="text-gray-300">
@@ -155,6 +169,7 @@ export default function Login() {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 rounded-md bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="example@domain.com"
+              required
             />
           </div>
           <div className="mb-8">
@@ -168,13 +183,15 @@ export default function Login() {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-2 rounded-md bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="MrTracker2025"
+              required
             />
           </div>
           <button
             type="submit"
             className="w-full py-2 bg-indigo-700 hover:bg-indigo-600 text-white font-semibold rounded-md transition mb-8"
+            disabled={loading}
           >
-            Login
+            {loading ? "Processing..." : "Login"}
           </button>
         </form>
         <p className="text-center text-gray-400">

@@ -394,8 +394,6 @@ export function AddTransaction({
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="10"
-              required
-              min="0.01"
               className="col-span-3"
             />
           </div>

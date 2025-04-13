@@ -40,14 +40,14 @@ export default function Homepage() {
       const netWorthJson = await netWorthRes.json();
       setNetWorthData(netWorthJson);
     } catch (error) {
-      console.error("Errore nel recupero dei dati:", error);
+      console.error("Error fetching data:", error);
     }
   };
 
   if (!session) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        Caricamento...
+        Loading...
       </div>
     );
   }

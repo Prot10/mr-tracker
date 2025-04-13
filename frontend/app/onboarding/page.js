@@ -99,8 +99,7 @@ export default function Onboarding() {
   const [initialBalance, setInitialBalance] = useState("0");
   const [expenseCategories, setExpenseCategories] = useState([]);
   const [incomeCategories, setIncomeCategories] = useState([]);
-
-  // States for custom category creation
+  const [loading, setLoading] = useState(false);
   const [customExpenseName, setCustomExpenseName] = useState("");
   const [customExpenseIcon, setCustomExpenseIcon] = useState("");
   const [customIncomeName, setCustomIncomeName] = useState("");
@@ -170,7 +169,6 @@ export default function Onboarding() {
     }
   };
 
-  // Handlers for selecting predefined categories
   const handleSelectExpenseCategory = (categoryName) => {
     const category = predefinedExpenseCategories.find(
       (cat) => cat.name === categoryName
@@ -189,7 +187,6 @@ export default function Onboarding() {
     }
   };
 
-  // Handlers for adding custom categories
   const addCustomExpenseCategory = () => {
     if (!customExpenseName || !customExpenseIcon) {
       toast.error("Missing Information", {
@@ -241,23 +238,27 @@ export default function Onboarding() {
   };
 
   const submitOnboarding = async () => {
+    setLoading(true);
     const balance = parseFloat(initialBalance);
     if (isNaN(balance) || balance < 0) {
       toast.error("Invalid Balance", {
         description: "Please enter a valid positive initial balance",
       });
+      setLoading(false);
       return;
     }
     if (expenseCategories.length === 0) {
       toast.error("Expense Categories Required", {
         description: "Please select at least one expense category",
       });
+      setLoading(false);
       return;
     }
     if (incomeCategories.length === 0) {
       toast.error("Income Categories Required", {
         description: "Please select at least one income category",
       });
+      setLoading(false);
       return;
     }
 
@@ -302,12 +303,90 @@ export default function Onboarding() {
       toast.error("Onboarding Failed", {
         description: err.message || "An error occurred while saving your data",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
-      <div className="w-full max-w-md rounded-lg p-2 space-y-6">
+      <div className="w-full max-w-md rounded-lg p-2 space-y-6 relative">
+        {loading && (
+          <div className="absolute inset-0 bg-neutral-950/90 flex items-center justify-center rounded-lg z-10">
+            <div className="flex items-center justify-center space-x-2">
+              <svg width="60" height="60" viewBox="0 0 50 50">
+                <g fill="none" stroke="#60A5FA">
+                  <g transform="rotate(0 25 25)">
+                    <ellipse
+                      cx="25"
+                      cy="25"
+                      rx="15"
+                      ry="8"
+                      strokeWidth="2"
+                      opacity="0.3"
+                    >
+                      <animateTransform
+                        attributeName="transform"
+                        type="rotate"
+                        from="0 25 25"
+                        to="360 25 25"
+                        dur="3s"
+                        repeatCount="indefinite"
+                      />
+                    </ellipse>
+                  </g>
+                  <g transform="rotate(120 25 25)">
+                    <ellipse
+                      cx="25"
+                      cy="25"
+                      rx="15"
+                      ry="8"
+                      strokeWidth="2"
+                      opacity="0.5"
+                    >
+                      <animateTransform
+                        attributeName="transform"
+                        type="rotate"
+                        from="0 25 25"
+                        to="360 25 25"
+                        dur="4s"
+                        repeatCount="indefinite"
+                      />
+                    </ellipse>
+                  </g>
+                  <g transform="rotate(240 25 25)">
+                    <ellipse
+                      cx="25"
+                      cy="25"
+                      rx="15"
+                      ry="8"
+                      strokeWidth="2"
+                      opacity="0.7"
+                    >
+                      <animateTransform
+                        attributeName="transform"
+                        type="rotate"
+                        from="0 25 25"
+                        to="360 25 25"
+                        dur="5s"
+                        repeatCount="indefinite"
+                      />
+                    </ellipse>
+                  </g>
+                  <circle cx="25" cy="25" r="3" fill="#60A5FA">
+                    <animate
+                      attributeName="r"
+                      values="3;4;3"
+                      dur="1s"
+                      repeatCount="indefinite"
+                    />
+                  </circle>
+                </g>
+              </svg>
+              <span className="text-white">Please wait...</span>
+            </div>
+          </div>
+        )}
         <Stepper
           key={currentStep}
           initialStep={currentStep}
@@ -330,7 +409,6 @@ export default function Onboarding() {
                 placeholder="0"
                 required
                 min="1"
-                className="w-full px-4 py-2 rounded-md bg-neutral-950 text-white"
               />
             </div>
           </Step>

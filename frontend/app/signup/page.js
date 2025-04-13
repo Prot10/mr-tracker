@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Label } from "../components/ui/label";
 import { Input } from "../components/ui/my-input";
 import { supabase } from "../lib/supabaseClient";
@@ -14,29 +15,71 @@ export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSignup = async (e) => {
     e.preventDefault();
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
+
+    // Client-side validations
+    if (!name.trim()) {
+      toast.error("Name Required", {
+        description: "Please enter your full name",
+      });
       return;
     }
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { name },
-      },
-    });
+    if (!email.trim()) {
+      toast.error("Email Required", {
+        description: "Please enter a valid email address",
+      });
+      return;
+    }
 
-    if (error) {
-      setError(error.message);
-    } else {
-      alert("Registration successful!");
-      router.push("/onboarding");
+    if (!password || !confirmPassword) {
+      toast.error("Password Required", {
+        description: "Please fill in both password fields",
+      });
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error("Password Mismatch", {
+        description: "The passwords you entered don't match",
+      });
+      return;
+    }
+
+    if (password.length < 8) {
+      toast.error("Password Too Short", {
+        description: "Password must be at least 8 characters long",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { name },
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      toast.success("Registration Successful!", {
+        description: "Welcome to Mr. Tracker! Redirecting to onboarding...",
+        duration: 2000,
+      });
+
+      // Wait for toast to show before redirect
+      setTimeout(() => router.push("/onboarding"), 2000);
+    } catch (err) {
+      toast.error("Registration Failed", {
+        description: err.message || "An error occurred during signup",
+      });
     }
   };
 
@@ -57,7 +100,6 @@ export default function Signup() {
         <h1 className="text-3xl font-bold text-white mb-6 text-center">
           Sign Up
         </h1>
-        {error && <p className="text-red-500 mb-4 text-center">{error}</p>}
         <form onSubmit={handleSignup} className="space-y-4">
           <div className="mb-4">
             <Label htmlFor="name" className="text-gray-300">
@@ -70,6 +112,7 @@ export default function Signup() {
               onChange={(e) => setName(e.target.value)}
               className="w-full px-4 py-2 rounded-md bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="Gino"
+              required
             />
           </div>
           <div className="mb-4">
@@ -83,6 +126,7 @@ export default function Signup() {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 rounded-md bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="example@domain.com"
+              required
             />
           </div>
           <div className="mb-4">
@@ -97,6 +141,7 @@ export default function Signup() {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-2 rounded-md bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="MrTracker2025"
+              required
             />
           </div>
           <div className="mb-8">
@@ -111,6 +156,7 @@ export default function Signup() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="w-full px-4 py-2 rounded-md bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="MrTracker2025"
+              required
             />
           </div>
           <button

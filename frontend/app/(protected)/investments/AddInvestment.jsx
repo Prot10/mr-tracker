@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Calendar } from "../../components/ui/calendar";
 import {
   DropdownMenu,
@@ -109,35 +110,102 @@ export function AddInvestment({
     e.preventDefault();
     setError(null);
 
+    // Client-side validations
+    if (!ticker.trim()) {
+      toast.error("Missing Ticker", {
+        description: "Please enter a valid asset ticker symbol",
+      });
+      return;
+    }
+
+    if (!fullName.trim()) {
+      toast.error("Missing Asset Name", {
+        description: "Please enter the full name of the asset",
+      });
+      return;
+    }
+
+    if (!quantity || isNaN(quantity)) {
+      toast.error("Invalid Quantity", {
+        description: "Please enter a valid quantity number",
+      });
+      return;
+    }
+
+    if (parseFloat(quantity) <= 0) {
+      toast.error("Invalid Quantity", {
+        description: "Quantity must be greater than 0",
+      });
+      return;
+    }
+
+    if (!totalValue || isNaN(totalValue)) {
+      toast.error("Invalid Value", {
+        description: "Please enter a valid total value",
+      });
+      return;
+    }
+
+    if (parseFloat(totalValue) <= 0) {
+      toast.error("Invalid Value", {
+        description: "Total value must be greater than 0",
+      });
+      return;
+    }
+
+    if (!dateOfOperation || isNaN(dateOfOperation.getTime())) {
+      toast.error("Invalid Date", {
+        description: "Please select a valid operation date",
+      });
+      return;
+    }
+
     const {
       data: { session },
     } = await supabase.auth.getSession();
 
     if (!session) {
-      return router.push("/login");
+      toast.error("Session Expired", {
+        description: "Please login to continue",
+      });
+      router.push("/login");
+      return;
     }
 
-    // Build the payload
-    const payload = {
-      type_of_operation: typeOfOperation,
-      asset_type: assetType,
-      ticker,
-      full_name: fullName,
-      quantity: parseFloat(quantity),
-      total_value: parseFloat(totalValue),
-      date_of_operation: format(dateOfOperation, "yyyy-MM-dd"),
-      exchange,
-    };
-
     try {
+      // Build the payload
+      const payload = {
+        type_of_operation: typeOfOperation,
+        asset_type: assetType,
+        ticker: ticker.trim().toUpperCase(),
+        full_name: fullName.trim(),
+        quantity: parseFloat(quantity),
+        total_value: parseFloat(totalValue),
+        date_of_operation: format(dateOfOperation, "yyyy-MM-dd"),
+        exchange: exchange.trim(),
+      };
+
       const token = session.access_token;
       let response;
 
-      if (existingInvestment && existingInvestment.id) {
-        // Use updateInvestment if editing an existing investment
+      if (existingInvestment?.id) {
         response = await updateInvestment(payload, token);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(
+            errorData.detail ||
+              "Failed to update investment. Please check your inputs."
+          );
+        }
+
+        toast.success("Investment Updated", {
+          description: `${
+            typeOfOperation === "sell" ? "Sold" : "Bought"
+          } ${quantity} ${
+            quantity > 1 ? "units" : "unit"
+          } of ${ticker} (${fullName}) for €${totalValue}`,
+        });
       } else {
-        // Otherwise, create a new investment
         response = await fetch(`${BACKEND_URL}/investments`, {
           method: "POST",
           headers: {
@@ -146,34 +214,31 @@ export function AddInvestment({
           },
           body: JSON.stringify(payload),
         });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(
+            errorData.detail || "Failed to create investment. Please try again."
+          );
+        }
+
+        toast.success("Investment Created", {
+          description: `New ${assetType} investment recorded: ${quantity} ${
+            quantity > 1 ? "units" : "unit"
+          } of ${ticker} for €${totalValue}`,
+        });
       }
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.detail || "Error saving investment");
-      }
-
-      if (existingInvestment && existingInvestment.id) {
-        alert("✅ Investment updated successfully!");
-      } else {
-        alert("✅ Investment added successfully!");
-      }
-
-      // Close the dialog
-      if (onOpenChange) {
-        onOpenChange(false);
-      }
-
-      // If parent wants to do something after saving:
-      if (onInvestmentSaved) {
-        onInvestmentSaved();
-      }
-
-      // Navigate to /investments (or wherever you prefer)
+      // Close dialog and refresh
+      onOpenChange?.(false);
+      onInvestmentSaved?.();
       router.push("/investments");
     } catch (err) {
-      setError(err.message);
-      alert(`❌ Error: ${err.message}`);
+      toast.error("Investment Operation Failed", {
+        description:
+          err.message ||
+          "An unexpected error occurred. Please try again later.",
+      });
     }
   };
 

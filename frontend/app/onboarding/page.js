@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import {
@@ -117,17 +118,20 @@ export default function Onboarding() {
   }, [router]);
 
   const handleStepChange = (newStep) => {
-    // Only validate when moving forward
     if (newStep > currentStep) {
       if (currentStep === 1) {
         const balance = parseInt(initialBalance, 10);
         if (isNaN(balance) || balance < 0) {
-          alert("Please enter a valid positive initial balance.");
+          toast.error("Invalid Balance", {
+            description: "Please enter a valid positive initial balance",
+          });
           return;
         }
       } else if (currentStep === 2) {
         if (expenseCategories.length === 0) {
-          alert("Please select at least one expense category.");
+          toast.error("Expense Categories Required", {
+            description: "Please select at least one expense category",
+          });
           return;
         }
       }
@@ -139,17 +143,23 @@ export default function Onboarding() {
     if (currentStep === 1) {
       const balance = parseInt(initialBalance, 10);
       if (isNaN(balance) || balance < 0) {
-        alert("Please enter a valid positive initial balance.");
+        toast.error("Invalid Balance", {
+          description: "Please enter a valid positive initial balance",
+        });
         return;
       }
     } else if (currentStep === 2) {
       if (expenseCategories.length === 0) {
-        alert("Please select at least one expense category.");
+        toast.error("Expense Categories Required", {
+          description: "Please select at least one expense category",
+        });
         return;
       }
     } else if (currentStep === 3) {
       if (incomeCategories.length === 0) {
-        alert("Please select at least one income category.");
+        toast.error("Income Categories Required", {
+          description: "Please select at least one income category",
+        });
         return;
       }
     }
@@ -181,85 +191,123 @@ export default function Onboarding() {
 
   // Handlers for adding custom categories
   const addCustomExpenseCategory = () => {
-    if (customExpenseName && customExpenseIcon) {
-      setExpenseCategories((prev) => [
-        ...prev,
-        {
-          name:
-            customExpenseName.charAt(0).toUpperCase() +
-            customExpenseName.slice(1).toLowerCase(),
-          icon: customExpenseIcon,
-        },
-      ]);
-      setCustomExpenseName("");
-      setCustomExpenseIcon("");
+    if (!customExpenseName || !customExpenseIcon) {
+      toast.error("Missing Information", {
+        description:
+          "Please enter both a name and select an icon for the category",
+      });
+      return;
     }
+
+    setExpenseCategories((prev) => [
+      ...prev,
+      {
+        name:
+          customExpenseName.charAt(0).toUpperCase() +
+          customExpenseName.slice(1).toLowerCase(),
+        icon: customExpenseIcon,
+      },
+    ]);
+    setCustomExpenseName("");
+    setCustomExpenseIcon("");
+    toast("Custom Expense Category Added", {
+      description: `${customExpenseName} with ${customExpenseIcon} icon`,
+    });
   };
 
   const addCustomIncomeCategory = () => {
-    if (customIncomeName && customIncomeIcon) {
-      setIncomeCategories((prev) => [
-        ...prev,
-        {
-          name:
-            customIncomeName.charAt(0).toUpperCase() +
-            customIncomeName.slice(1).toLowerCase(),
-          icon: customIncomeIcon,
-        },
-      ]);
-      setCustomIncomeName("");
-      setCustomIncomeIcon("");
+    if (!customIncomeName || !customIncomeIcon) {
+      toast.error("Missing Information", {
+        description:
+          "Please enter both a name and select an icon for the category",
+      });
+      return;
     }
+
+    setIncomeCategories((prev) => [
+      ...prev,
+      {
+        name:
+          customIncomeName.charAt(0).toUpperCase() +
+          customIncomeName.slice(1).toLowerCase(),
+        icon: customIncomeIcon,
+      },
+    ]);
+    setCustomIncomeName("");
+    setCustomIncomeIcon("");
+    toast("Custom Income Category Added", {
+      description: `${customIncomeName} with ${customIncomeIcon} icon`,
+    });
   };
 
   const submitOnboarding = async () => {
     const balance = parseFloat(initialBalance);
     if (isNaN(balance) || balance < 0) {
-      alert("Please enter a valid positive initial balance.");
+      toast.error("Invalid Balance", {
+        description: "Please enter a valid positive initial balance",
+      });
       return;
     }
     if (expenseCategories.length === 0) {
-      alert("Please select at least one expense category.");
+      toast.error("Expense Categories Required", {
+        description: "Please select at least one expense category",
+      });
       return;
     }
     if (incomeCategories.length === 0) {
-      alert("Please select at least one income category.");
+      toast.error("Income Categories Required", {
+        description: "Please select at least one income category",
+      });
       return;
     }
+
     const payload = {
       initial_balance: balance,
       expense_categories: expenseCategories,
       income_categories: incomeCategories,
     };
 
-    // Get the current session to retrieve the access token
-    const sessionResponse = await supabase.auth.getSession();
-    const session = sessionResponse.data.session;
-    if (!session) {
-      alert("User not authenticated.");
-      return;
-    }
-    const accessToken = session.access_token;
+    try {
+      const sessionResponse = await supabase.auth.getSession();
+      const session = sessionResponse.data.session;
 
-    const response = await fetch(`${BACKEND_URL}/onboarding`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify(payload),
-    });
-    const data = await response.json();
-    if (response.ok) {
+      if (!session) {
+        toast.error("Authentication Required", {
+          description: "Please login to continue",
+        });
+        router.push("/login");
+        return;
+      }
+
+      const accessToken = session.access_token;
+      const response = await fetch(`${BACKEND_URL}/onboarding`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to save onboarding data");
+      }
+
+      toast.success("Onboarding Complete!", {
+        description: "Your financial setup is ready! Redirecting...",
+      });
       router.push("/homepage");
-    } else {
-      alert(data.detail || "Error saving onboarding data.");
+    } catch (err) {
+      toast.error("Onboarding Failed", {
+        description: err.message || "An error occurred while saving your data",
+      });
     }
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-lg p-8 space-y-6">
+    <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+      <div className="w-full max-w-md rounded-lg p-2 space-y-6">
         <Stepper
           key={currentStep}
           initialStep={currentStep}
